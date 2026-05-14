@@ -1,5 +1,6 @@
 import { BookOpen, CheckCircle, Clock, TrendingUp } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useAuth } from "../contexts/AuthContext";
 
 const stats = [
   { label: "Tasks Completed", value: "24", icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" },
@@ -26,10 +27,11 @@ const recentActivities = [
 ];
 
 export default function Dashboard() {
+  const { user } = useAuth();
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Welcome back, Jane! 👋</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user?.name || "User" } 👋</h1>
         <p className="text-gray-600 mt-1">Here's your learning overview for today</p>
       </div>
 

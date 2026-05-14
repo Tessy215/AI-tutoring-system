@@ -1,5 +1,7 @@
-import { Link, useLocation, Outlet } from "react-router-dom";
-import { Home, CheckSquare, Lightbulb, BookOpen, TrendingUp } from "lucide-react";
+import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
+import { Home, CheckSquare, Lightbulb, BookOpen, TrendingUp, User, LogOut } from "lucide-react";
+
+import { useAuth } from "./contexts/AuthContext";
 
 const navigation = [
   { name: "Dashboard", path: "/", icon: Home },
@@ -11,6 +13,14 @@ const navigation = [
 
 export default function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  // CHANGED: added user and logout from AuthContext to display user info and handle logout
+  const { user ,logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -45,9 +55,40 @@ export default function Layout() {
           })}
         </nav>
 
-        <div className="p-4 border-t">
-          <p className="font-medium">Jane Student</p>
-          <p className="text-xs text-gray-500">Grade 10</p>
+        <div className="p-4 border-t border-gray-200 space-y-2">
+          {/* //profile link */}
+          <Link
+            to="/profile"
+            className={`flex item-center gap-3 px-4 py-3 rounded-lg w-full ${
+              location.pathname === "/profile"
+                ? "bg-indigo-50 text-indigo-600"
+                : "text-gray-700 hover:bg-gray-100"
+            }`}
+            >
+            <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
+              <span className="text-indigo-600 font-semibold text-sm">
+                {user?.name?.charAt(0).toUpperCase() || "U"}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0"> 
+              <p className="font-medium text-sm truncate">{user?.name || "user"}</p>
+              <p className="text-xs text-gray-500 truncate">{user?.grade || "Not set"}</p>
+            </div>
+            <User className="w-4 h-4 shrink-0"/>
+          </Link>
+
+          {/* logout button */}
+          <button
+            onClick={ () =>{
+              console.log("Button clicked");
+              console.log("user in storage:", localStorage.getItem("user"));
+              handleLogout();
+            }}
+            className="flex items-center gap-3 px-4 py-3 rounded-lg w-full text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="text-sm font-medium"> Logout</span>
+          </button>
         </div>
       </aside>
 
