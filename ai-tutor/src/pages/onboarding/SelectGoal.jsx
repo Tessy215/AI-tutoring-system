@@ -2,7 +2,7 @@ import { useState } from "react";
 // CHANGED: react-router -> react-router-dom
 import { useNavigate } from "react-router-dom";
 import { Check, ArrowRight, ArrowLeft } from "lucide-react";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../Contexts/AuthContext.jsx";
 
 export default function SelectGoals() {
   const navigate = useNavigate();

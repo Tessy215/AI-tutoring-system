@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { User, Mail, Lock, AlertCircle } from "lucide-react";
 import AuthLayout from "../../components/AuthLayout";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../Contexts/AuthContext.jsx";
 
 export default function Register() {
   const navigate = useNavigate();

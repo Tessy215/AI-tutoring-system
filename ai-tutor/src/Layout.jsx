@@ -1,7 +1,7 @@
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import { Home, CheckSquare, Lightbulb, BookOpen, TrendingUp, User, LogOut } from "lucide-react";
 
-import { useAuth } from "./contexts/AuthContext";
+import { useAuth } from "./Contexts/AuthContext.jsx";
 
 const navigation = [
   { name: "Dashboard", path: "/", icon: Home },

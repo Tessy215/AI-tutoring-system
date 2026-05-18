@@ -1,7 +1,7 @@
 // CHANGED: react-router -> react-router-dom
 import { useNavigate } from "react-router-dom";
 import { Sparkles, BookOpen, Target, TrendingUp, ArrowRight } from "lucide-react";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../Contexts/AuthContext.jsx";
 
 export default function Welcome() {
   const navigate = useNavigate();

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { User, Mail, GraduationCap, Camera, Save, Edit2, BookOpen, Target } from "lucide-react";
 // CHANGED: updated import path since Profile.jsx is in pages/ not pages/auth/
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../Contexts/AuthContext.jsx";
 
 export default function Profile() {
   const { user, updateProfile } = useAuth();

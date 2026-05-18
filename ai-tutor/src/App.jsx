@@ -14,7 +14,7 @@ import SelectGoals from "./pages/onboarding/SelectGoal";
 import Profile from "./pages/Profile";
 
 
-import { useAuth } from "./contexts/AuthContext";
+import { useAuth } from "./Contexts/AuthContext.jsx";
 
 function ProtectedRoute({ children }) {
   const {isAuthenticated, isLoading} = useAuth();

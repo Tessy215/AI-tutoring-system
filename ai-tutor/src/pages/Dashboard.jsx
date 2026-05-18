@@ -1,6 +1,6 @@
 import { BookOpen, CheckCircle, Clock, TrendingUp } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../Contexts/AuthContext.jsx";
 
 const stats = [
   { label: "Tasks Completed", value: "24", icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" },
