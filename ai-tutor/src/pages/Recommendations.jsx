@@ -113,7 +113,7 @@ export default function Recommendations() {
                 "border-green-500"
               } shadow-sm hover:shadow-md transition-shadow`}
             >
-              <div className="flex items-start justify-between mb-3">
+              <div className="flex  flex-wrap items-start justify-between mb-3">
                 <div className="flex items-start gap-3">
                   <div className={`p-2 rounded-lg ${
                     rec.priority === "high" ? "bg-red-50" :
@@ -127,7 +127,7 @@ export default function Recommendations() {
                     }`} />
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
                       <h3 className="font-semibold text-gray-900">{rec.title}</h3>
                       <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded">
                         {rec.subject}

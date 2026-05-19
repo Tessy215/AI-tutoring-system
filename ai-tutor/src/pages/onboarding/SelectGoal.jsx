@@ -35,12 +35,14 @@ export default function SelectGoals() {
     setIsLoading(true);
 
     // CHANGED: onboarding_subjects -> onboarding_interests to match SelectInterests.jsx
-    const interests = JSON.parse(localStorage.getItem("onboarding_interests") || "[]");
+    const field = localStorage.getItem("onboarding_field");
+    const courses = JSON.parse(localStorage.getItem("onboarding_courses") || "[]");
 
-    await completeOnboarding(interests, selectedGoals);
+    await completeOnboarding(field, courses, selectedGoals);
 
     // CHANGED: cleanup key name updated
-    localStorage.removeItem("onboarding_interests");
+    localStorage.removeItem("onboarding_field");
+    localStorage.removeItem("onboarding_courses");
 
     setIsLoading(false);
     navigate("/");
@@ -56,9 +58,9 @@ export default function SelectGoals() {
             <div className="flex-1 h-2 bg-indigo-600 rounded-full"></div>
           </div>
 
-          {/* CHANGED: back button goes to select-interests not select-subjects */}
+          {/* CHANGED: back button goes to select-courses not select-field */}
           <button
-            onClick={() => navigate("/onboarding/select-interests")}
+            onClick={() => navigate("/onboarding/select-courses")}
             className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-4"
           >
             <ArrowLeft className="w-4 h-4" />

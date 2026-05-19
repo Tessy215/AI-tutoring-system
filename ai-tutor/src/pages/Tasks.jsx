@@ -79,27 +79,27 @@ export default function Tasks() {
               placeholder="Task title"
               value={newTask.title}
               onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-              className="p-2 border rounded"
+              className="p-2 border rounded w-full focus:outline-none focus:ring:indigo-500 "
             />
 
             <input
               placeholder="Subject"
               value={newTask.subject}
               onChange={(e) => setNewTask({ ...newTask, subject: e.target.value })}
-              className="p-2 border rounded"
+              className="p-2 border rounded w-full focus:outline-none focus:ring:indigo-500 "
             />
 
             <input
               type="date"
               value={newTask.dueDate}
               onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
-              className="p-2 border rounded"
+              className="p-2 border rounded w-full focus:outline-none focus:ring:indigo-500 "
             />
 
             <select
               value={newTask.priority}
               onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
-              className="p-2 border rounded"
+              className="p-2 border rounded w-full focus:outline-none focus:ring:indigo-500 "
             >
               <option value="low">Low</option>
               <option value="medium">Medium</option>

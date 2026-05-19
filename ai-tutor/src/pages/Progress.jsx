@@ -46,7 +46,7 @@ export default function Progress() {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-6 rounded-xl text-white">
           <div className="flex items-center justify-between mb-2">
             <p className="text-indigo-100">Overall Average</p>
@@ -94,7 +94,7 @@ export default function Progress() {
         {/* Performance Over Time */}
         <div className="bg-white p-6 rounded-xl border border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Performance Trends</h2>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 200 : 300}>
             <LineChart data={monthlyPerformance}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="month" stroke="#9ca3af" />

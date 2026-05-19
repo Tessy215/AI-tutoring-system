@@ -106,8 +106,8 @@ export default function Dashboard() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
         <div className="space-y-3">
           {recentActivities.map((activity, index) => (
-            <div key={index} className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-lg transition-colors">
-              <div className="flex items-center gap-4">
+            <div key={index} className="flex items-start justify-between p-4 hover:bg-gray-50 rounded-lg transition-colors gap-2">
+              <div className="flex items-center gap-4 flex-1 min-w-0">
                 <div className={`w-2 h-2 rounded-full ${
                   activity.status === "completed" ? "bg-green-500" :
                   activity.status === "submitted" ? "bg-blue-500" :

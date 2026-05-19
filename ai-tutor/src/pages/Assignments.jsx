@@ -104,16 +104,16 @@ export default function Assignments() {
                 key={assignment.id}
                 className="bg-white p-6 rounded-xl border border-gray-200 hover:shadow-md transition-shadow"
               >
-                <div className="flex items-start justify-between mb-3">
+                <div className="flex  flex-col sm:flex-row sm:items-start sm:justify-between mb-3 gap-3">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex flex-wrap items-center gap-3 mb-2">
                       <h3 className="font-semibold text-gray-900">{assignment.title}</h3>
                       <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded">
                         {assignment.subject}
                       </span>
                     </div>
                     <p className="text-gray-600 text-sm mb-3">{assignment.description}</p>
-                    <div className="flex items-center gap-4 text-sm">
+                    <div className="flex flex-wrap items-center gap-4 text-sm">
                       <span className="flex items-center gap-1 text-gray-500">
                         <Calendar className="w-4 h-4" />
                         Due: {assignment.dueDate}
@@ -126,7 +126,7 @@ export default function Assignments() {
                       </span>
                     </div>
                   </div>
-                  <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm flex items-center gap-2">
+                  <button className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm flex items-center gap-2">
                     <Eye className="w-4 h-4" />
                     View Details
                   </button>

@@ -44,7 +44,8 @@ export function AuthProvider({ children }) {
       role: "student",
       grade: "Not Set",
       avatar: null,
-      subjects: [],
+      field: null,
+      courses: [],
       goals: [],
     };
 
@@ -67,8 +68,8 @@ export function AuthProvider({ children }) {
     localStorage.setItem("user", JSON.stringify(updatedUser));
   };
 
-  const completeOnboarding = (subjects, goals) => {
-    const updatedUser = { ...user, subjects, goals };
+  const completeOnboarding = (field, courses, goals) => {
+    const updatedUser = { ...user, field, courses, goals };
     setUser(updatedUser);
     setHasCompletedOnboarding(true);
     localStorage.setItem("user", JSON.stringify(updatedUser));

@@ -61,7 +61,7 @@ export default function Welcome() {
 
         <div className="text-center">
           <button
-            onClick={() => navigate("/onboarding/select-interests")}
+            onClick={() => navigate("/onboarding/select-field")}
             className="inline-flex items-center gap-2 px-8 py-4 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
           >
             Get Started

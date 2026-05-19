@@ -9,8 +9,9 @@ import Login from "./pages/Auth/Login";
 import Register from "./pages/Auth/Register";
 import ForgotPassword from "./pages/Auth/ForgetPassword";
 import Welcome from "./pages/onboarding/Welcome";
-import SelectInterests from "./pages/onboarding/SelectInterest";
-import SelectGoals from "./pages/onboarding/SelectGoal";
+import SelectField from "./pages/onboarding/SelectField";
+import SelectCourses from "./pages/onboarding/SelectCourses";
+import SelectGoal from "./pages/onboarding/SelectGoal";
 import Profile from "./pages/Profile";
 
 
@@ -40,8 +41,9 @@ function App() {
 
       {/* onboarding routes are protected but don't require auth since they are part of the onboarding flow right after registration */}
       <Route path="/onboarding/welcome" element={<ProtectedRoute><Welcome/></ProtectedRoute>} />
-      <Route path="/onboarding/select-interests" element={<ProtectedRoute><SelectInterests/></ProtectedRoute>} />
-      <Route path="/onboarding/select-goals" element={<ProtectedRoute><SelectGoals/></ProtectedRoute>} />
+      <Route path="/onboarding/select-field" element={<ProtectedRoute><SelectField/></ProtectedRoute>} />
+      <Route path="/onboarding/select-courses" element={<ProtectedRoute><SelectCourses/></ProtectedRoute>} />
+      <Route path="/onboarding/select-goals" element={<ProtectedRoute><SelectGoal/></ProtectedRoute>} />
 
       {/* protected app routes */}
       <Route
