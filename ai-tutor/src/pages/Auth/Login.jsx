@@ -1,7 +1,7 @@
 // CHANGED: react-router -> react-router-dom
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Mail, Lock, AlertCircle } from "lucide-react";
+import { Mail, Lock, AlertCircle, Eye, EyeOff } from "lucide-react";
 import AuthLayout from "../../components/AuthLayout";
 import { useAuth } from "../../Contexts/AuthContext.jsx";
 
@@ -11,6 +11,8 @@ export default function Login() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+
+  const [showPassword, setShowPassword] =useState(false);
 
   const validateForm = () => {
     const newErrors = {};
@@ -36,14 +38,19 @@ export default function Login() {
     e.preventDefault();
 
     if (!validateForm()) return;
-
-    console.log("calling login")
     setIsLoading(true);
     try {
       await login(formData.email, formData.password);
       navigate("/");
     } catch (_error) {
-      setErrors({ submit: "Login failed. Please try again." });
+      // CHANGED: set generic error message instead of showing raw error to user
+      const message = _error.message || "";
+
+      if(message.includes("Invalid credentials") || message.includes("password")){
+        setErrors({ submit: "Wrong email or password. Please try again."});
+      } else {
+        setErrors({ submit: "Login failed. Please try again." });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -56,7 +63,10 @@ export default function Login() {
         <p className="text-gray-600 mt-1">Sign in to continue your learning journey</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4"
+      >
         {errors.submit && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
             <AlertCircle className="w-5 h-5" />
@@ -65,45 +75,44 @@ export default function Login() {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Email Address
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={e => setFormData({ ...formData, email: e.target.value })}
               className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                 errors.email ? "border-red-300" : "border-gray-300"
               }`}
               placeholder="your.email@example.com"
             />
           </div>
-          {errors.email && (
-            <p className="text-sm text-red-600 mt-1">{errors.email}</p>
-          )}
+          {errors.email && <p className="text-sm text-red-600 mt-1">{errors.email}</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Password
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              onChange={e => setFormData({ ...formData, password: e.target.value })}
+              className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                 errors.password ? "border-red-300" : "border-gray-300"
               }`}
               placeholder="••••••••"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+            >
+              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
           </div>
-          {errors.password && (
-            <p className="text-sm text-red-600 mt-1">{errors.password}</p>
-          )}
+          {errors.password && <p className="text-sm text-red-600 mt-1">{errors.password}</p>}
         </div>
 
         <div className="flex items-center justify-between">
@@ -143,5 +152,5 @@ export default function Login() {
         </p>
       </div>
     </AuthLayout>
-  );
+  )
 }

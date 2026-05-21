@@ -1,7 +1,7 @@
 // CHANGED: react-router -> react-router-dom
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { User, Mail, Lock, AlertCircle } from "lucide-react";
+import { User, Mail, Lock, AlertCircle, Eye, EyeOff } from "lucide-react";
 import AuthLayout from "../../components/AuthLayout";
 import { useAuth } from "../../Contexts/AuthContext.jsx";
 
@@ -16,6 +16,8 @@ export default function Register() {
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const validateForm = () => {
     const newErrors = {};
@@ -59,7 +61,15 @@ export default function Register() {
       await register(formData.name, formData.email, formData.password);
       navigate("/onboarding/welcome");
     } catch (_error) {
-      setErrors({ submit: "Registration failed. Please try again." });
+      
+      const message = _error.message || "";
+      
+      if (message.includes("already exists") || message.includes("email")){
+        setErrors({ submit: "An account with this email already exists. Please login instead." });
+      } else {
+        setErrors({ submit: "Registration failed. Please try again." });
+      }
+
     } finally {
       setIsLoading(false);
     }
@@ -111,7 +121,7 @@ export default function Register() {
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                 errors.email ? "border-red-300" : "border-gray-300"
               }`}
               placeholder="your.email@example.com"
@@ -129,14 +139,21 @@ export default function Register() {
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                 errors.password ? "border-red-300" : "border-gray-300"
               }`}
               placeholder="••••••••"
             />
+             <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
           </div>
           {errors.password && (
             <p className="text-sm text-red-600 mt-1">{errors.password}</p>
@@ -150,14 +167,22 @@ export default function Register() {
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
-              type="password"
+              type={showConfirmPassword ? "text" : "password"}
               value={formData.confirmPassword}
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-              className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                 errors.confirmPassword ? "border-red-300" : "border-gray-300"
               }`}
               placeholder="••••••••"
             />
+              <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+
           </div>
           {errors.confirmPassword && (
             <p className="text-sm text-red-600 mt-1">{errors.confirmPassword}</p>

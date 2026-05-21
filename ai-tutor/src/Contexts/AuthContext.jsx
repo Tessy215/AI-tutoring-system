@@ -1,79 +1,79 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import { account, ID } from "../lib/appwrite";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
+
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const onboardingStatus = localStorage.getItem("hasCompletedOnboarding");
-
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-      setHasCompletedOnboarding(onboardingStatus === "true");
-    }
-
-    setIsLoading(false);
+    checkUser();
   }, []);
 
-  const login = (email, _password) => {
-    const storedUser = localStorage.getItem("user");
+  const checkUser = async () => {
+    try {
+      const currentUser = await account.get();
+      setUser(currentUser);
 
-    if (!storedUser) {
-      return Promise.reject("User not found");
+      const onboardingStatus = localStorage.getItem("hasCompletedOnboarding");
+      setHasCompletedOnboarding(onboardingStatus === "true");
+    } catch {
+      setUser(null);
+    } finally {
+      setIsLoading(false);
     }
-
-    const parsedUser = JSON.parse(storedUser);
-
-    if (parsedUser.email.trim().toLowerCase() === email.trim().toLowerCase()) {
-      setUser(parsedUser);
-      return Promise.resolve(parsedUser);
-    }
-
-    return Promise.reject("User not found");
   };
 
-  const register = (name, email, _password) => {
-    const mockUser = {
-      id: Date.now().toString(),
-      name: name,
-      email: email,
-      role: "student",
-      grade: "Not Set",
-      avatar: null,
-      field: null,
-      courses: [],
-      goals: [],
-    };
+  const login = async (email, password) => {
+    await account.createEmailPasswordSession(email, password);
+    const currentUser = await account.get();
+    setUser(currentUser);
+    return currentUser;
+  };
 
-    setUser(mockUser);
-    localStorage.setItem("user", JSON.stringify(mockUser));
+  const register = async (name, email, password) => {
+    await account.create(ID.unique(), email, password, name);
+    await login(email, password);
+
+    const newUser = await account.get();
+    setUser(newUser);
     setHasCompletedOnboarding(false);
-
-    return Promise.resolve(mockUser);
+    return newUser;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await account.deleteSession("current");
     setUser(null);
     setHasCompletedOnboarding(false);
     localStorage.removeItem("hasCompletedOnboarding");
   };
 
-  const updateProfile = (updates) => {
-    const updatedUser = { ...user, ...updates };
+  const updateProfile = async (update) => {
+    if (update.name && update.name !== user.name) {
+      await account.updateName(update.name);
+    }
+
+    if (update.email && update.email !== user.email) {
+      await account.updateEmail(update.email, update.currentPassword);
+    }
+
+    const updatedUser = await account.get();
     setUser(updatedUser);
-    localStorage.setItem("user", JSON.stringify(updatedUser));
   };
 
   const completeOnboarding = (field, courses, goals) => {
-    const updatedUser = { ...user, field, courses, goals };
-    setUser(updatedUser);
-    setHasCompletedOnboarding(true);
-    localStorage.setItem("user", JSON.stringify(updatedUser));
+    const onboardingData = { field, courses, goals };
+    localStorage.setItem("onboarding_data", JSON.stringify(onboardingData));
     localStorage.setItem("hasCompletedOnboarding", "true");
+    setHasCompletedOnboarding(true);
+  };
+
+  const getOnboardingData = () => {
+    const data = localStorage.getItem("onboarding_data");
+    return data ? JSON.parse(data) : null;
   };
 
   const value = {
@@ -85,6 +85,7 @@ export function AuthProvider({ children }) {
     logout,
     updateProfile,
     completeOnboarding,
+    getOnboardingData,
     isAuthenticated: !!user,
   };
 
