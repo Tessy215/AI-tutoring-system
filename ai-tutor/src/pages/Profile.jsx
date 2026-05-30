@@ -4,7 +4,8 @@ import { User, Mail, GraduationCap, Camera, Save, Edit2, BookOpen, Target } from
 import { useAuth } from "../Contexts/AuthContext.jsx";
 
 export default function Profile() {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, getOnboardingData } = useAuth();
+  const onboardingData = getOnboardingData();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || "",
@@ -39,7 +40,6 @@ export default function Profile() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
         {/* Profile Card */}
         <div className="lg:col-span-1">
           <div className="bg-white p-6 rounded-xl border border-gray-200">
@@ -65,12 +65,17 @@ export default function Profile() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">Member since</span>
-                  <span className="font-medium text-gray-900">May 2026</span>
+                  <span className="font-medium text-gray-900">
+                    {user?.$createdAt 
+                      ? new Date(user.$createdAt).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })
+                      : "Unknown"
+                    }
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">Account type</span>
                   <span className="font-medium text-gray-900">
-                    {user?.role === "student" ? "Student" : "Lecturer"}
+                    {"Students"}
                   </span>
                 </div>
               </div>
@@ -113,15 +118,13 @@ export default function Profile() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
                     disabled={!isEditing}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
                   />
@@ -137,7 +140,7 @@ export default function Profile() {
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={e => setFormData({ ...formData, email: e.target.value })}
                     disabled={!isEditing}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
                   />
@@ -154,7 +157,7 @@ export default function Profile() {
                   <input
                     type="text"
                     value={formData.grade}
-                    onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
+                    onChange={e => setFormData({ ...formData, grade: e.target.value })}
                     disabled={!isEditing}
                     placeholder="e.g. Year 2, Grade 10, Level 3"
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
@@ -170,6 +173,7 @@ export default function Profile() {
 
             <div className="space-y-6">
               {/* Interests */}
+
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <BookOpen className="w-5 h-5 text-indigo-600" />
@@ -177,13 +181,14 @@ export default function Profile() {
                   <h3 className="font-medium text-gray-900">My Interests</h3>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {user?.subjects && user.subjects.length > 0 ? (
-                    user.subjects.map((subject, index) => (
+                  {onboardingData?.courses && onboardingData.courses.length > 0 ? (
+                    onboardingData.courses.map((course, index) => (
                       <span
                         key={index}
-                        className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-sm"
+                        className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-sm capitalize"
                       >
-                        {subject}
+                        {/* CHANGED: replace dashes with spaces for display */}
+                        {course.replace(/-/g, " ")}
                       </span>
                     ))
                   ) : (
@@ -199,13 +204,12 @@ export default function Profile() {
                   <h3 className="font-medium text-gray-900">Learning Goals</h3>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {user?.goals && user.goals.length > 0 ? (
-                    user.goals.map((goal, index) => (
+                  {onboardingData?.goals && onboardingData.goals.length > 0 ? (
+                    onboardingData.goals.map((goal, index) => (
                       <span
                         key={index}
                         className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm capitalize"
                       >
-                        {/* CHANGED: replace dashes with spaces for display */}
                         {goal.replace(/-/g, " ")}
                       </span>
                     ))
@@ -219,5 +223,5 @@ export default function Profile() {
         </div>
       </div>
     </div>
-  );
+  )
 }

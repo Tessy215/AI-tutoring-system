@@ -1,7 +1,11 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { account, ID } from "../lib/appwrite";
+import { account, databases, ID } from "../lib/appwrite";
+import { DATABASE_ID, COLLECTIONS } from "../lib/config";
 
 const AuthContext = createContext(null);
+
+
+
 
 export function AuthProvider({ children }) {
 
@@ -64,11 +68,29 @@ export function AuthProvider({ children }) {
     setUser(updatedUser);
   };
 
-  const completeOnboarding = (field, courses, goals) => {
-    const onboardingData = { field, courses, goals };
-    localStorage.setItem("onboarding_data", JSON.stringify(onboardingData));
-    localStorage.setItem("hasCompletedOnboarding", "true");
-    setHasCompletedOnboarding(true);
+  const completeOnboarding = async (field, courses, goals) => {
+    try{
+      await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.USERS,
+        ID.unique(),
+        {
+          userId: user.$id,
+          name: user.name,
+          email: user.email,
+          field,
+          courses,
+          goals,
+          grade: "Not Set",
+          role: "student",
+        }
+      );
+      localStorage.setItem("onboarding_data", JSON.stringify({ field, courses, goals}))
+      localStorage.setItem("hasCompletedOnboarding", "true");
+      setHasCompletedOnboarding(true);
+    } catch (error) {
+      console.error("Onboarding error:", error);
+    }
   };
 
   const getOnboardingData = () => {
