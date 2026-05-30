@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Plus, CheckCircle, Circle, Trash2, Calendar, Edit2, X, Save } from "lucide-react";
-import { databases, ID, Query } from "../lib/appwrite";
+import { databases, ID } from "../lib/appwrite";
+import { Query } from "appwrite";
 import { DATABASE_ID, COLLECTIONS } from "../lib/config";
 import { useAuth } from "../Contexts/AuthContext";
 
