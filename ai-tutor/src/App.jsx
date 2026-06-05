@@ -31,6 +31,18 @@ function ProtectedRoute({ children }) {
   return children;
   }
 
+  function RoleRoute({ children, allowedRoles }) {
+    const { userProfile} = useAuth();
+
+    if (!userProfile) return null; // or a loading state
+
+    if (!allowedRoles.includes(userProfile.role)) {
+      return <Navigate to="/" replace />;
+    }
+
+    return children;
+  }
+
 function App() {
   return (
     <Routes>

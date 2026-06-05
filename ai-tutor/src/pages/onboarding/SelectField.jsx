@@ -16,10 +16,12 @@ const fields = [
 export default function SelectField() {
   const navigate = useNavigate();
   const [selectedField, setSelectedField] = useState(null);
+  const [selectedRole, setSelectedRole] = useState("student"); // Default to student role
 
   const handleContinue = () => {
     if (selectedField) {
       localStorage.setItem("onboarding_field", selectedField);
+      localStorage.setItem("onboarding_role", selectedRole);
       navigate("/onboarding/select-courses");
     }
   };
@@ -28,7 +30,6 @@ export default function SelectField() {
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
       <div className="max-w-4xl w-full">
         <div className="mb-8">
-
           {/* Progress bar - step 1 of 3 */}
           <div className="flex items-center gap-2 mb-6">
             <div className="flex-1 h-2 bg-indigo-600 rounded-full"></div>
@@ -44,17 +45,34 @@ export default function SelectField() {
             Back
           </button>
 
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            What is your field of study?
-          </h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">What is your field of study?</h1>
           <p className="text-gray-600">
-            Select your primary field. This helps us suggest the most relevant courses and materials.
+            Select your primary field. This helps us suggest the most relevant courses and
+            materials.
           </p>
         </div>
 
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold mb-2">Select your role</h2>
+
+          <div className="flex gap-3">
+            {["student", "lecturer"].map(role => (
+              <button
+                key={role}
+                onClick={() => setSelectedRole(role)}
+                className={`px-4 py-2 rounded-lg border ${
+                  selectedRole === role ? "bg-indigo-600 text-white" : "bg-white text-gray-700"
+                }`}
+              >
+                {role}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {fields.map((field) => {
-            const isSelected = selectedField === field.id;
+          {fields.map(field => {
+            const isSelected = selectedField === field.id
             return (
               <button
                 key={field.id}
@@ -66,7 +84,9 @@ export default function SelectField() {
                 }`}
               >
                 <div className="text-3xl mb-2">{field.emoji}</div>
-                <p className={`font-semibold mb-1 ${isSelected ? "text-indigo-900" : "text-gray-900"}`}>
+                <p
+                  className={`font-semibold mb-1 ${isSelected ? "text-indigo-900" : "text-gray-900"}`}
+                >
                   {field.name}
                 </p>
                 <p className="text-xs text-gray-500">{field.description}</p>
@@ -76,7 +96,7 @@ export default function SelectField() {
                   </div>
                 )}
               </button>
-            );
+            )
           })}
         </div>
 
@@ -95,5 +115,5 @@ export default function SelectField() {
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -1,3 +1,4 @@
+import { Query } from "appwrite";
 import { createContext, useContext, useState, useEffect } from "react";
 import { account, databases, ID } from "../lib/appwrite";
 import { DATABASE_ID, COLLECTIONS } from "../lib/config";
@@ -5,13 +6,12 @@ import { DATABASE_ID, COLLECTIONS } from "../lib/config";
 const AuthContext = createContext(null);
 
 
-
-
 export function AuthProvider({ children }) {
 
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
     checkUser();
@@ -22,7 +22,20 @@ export function AuthProvider({ children }) {
       const currentUser = await account.get();
       setUser(currentUser);
 
-      const onboardingStatus = localStorage.getItem("hasCompletedOnboarding");
+      const profile = await databases.listDocuments(
+        DATABASE_ID,
+        COLLECTIONS.USERS,
+        [Query.equal("userId", currentUser.$id)]
+      );
+
+      if (profile.documents.length > 0) {
+        setUserProfile(profile.documents[0]);
+      }
+
+      console.log("Role:", profile.documents[0].role)
+      console.log(profile.documents[0])
+
+    const onboardingStatus = localStorage.getItem("hasCompletedOnboarding");
       setHasCompletedOnboarding(onboardingStatus === "true");
     } catch {
       setUser(null);
@@ -35,6 +48,16 @@ export function AuthProvider({ children }) {
     await account.createEmailPasswordSession(email, password);
     const currentUser = await account.get();
     setUser(currentUser);
+    const profile = await databases.listDocuments(
+      DATABASE_ID,
+      COLLECTIONS.USERS,
+      [Query.equal("userId", currentUser.$id)]
+    );
+
+    if (profile.documents.length > 0) {
+      setUserProfile(profile.documents[0]);
+    }
+
     return currentUser;
   };
 
@@ -51,6 +74,7 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     await account.deleteSession("current");
     setUser(null);
+    setUserProfile(null);
     setHasCompletedOnboarding(false);
     localStorage.removeItem("hasCompletedOnboarding");
   };
@@ -68,7 +92,7 @@ export function AuthProvider({ children }) {
     setUser(updatedUser);
   };
 
-  const completeOnboarding = async (field, courses, goals) => {
+  const completeOnboarding = async (field, courses, goals, role = "student") => {
     try{
       await databases.createDocument(
         DATABASE_ID,
@@ -82,9 +106,16 @@ export function AuthProvider({ children }) {
           courses,
           goals,
           grade: "Not Set",
-          role: "student",
+          role,
         }
       );
+       const profile = await databases.listDocuments(DATABASE_ID, COLLECTIONS.USERS, [
+         Query.equal("userId", user.$id),
+       ])
+
+       if (profile.documents.length > 0) {
+         setUserProfile(profile.documents[0])
+       }
       localStorage.setItem("onboarding_data", JSON.stringify({ field, courses, goals}))
       localStorage.setItem("hasCompletedOnboarding", "true");
       setHasCompletedOnboarding(true);
@@ -93,6 +124,8 @@ export function AuthProvider({ children }) {
     }
   };
 
+ 
+
   const getOnboardingData = () => {
     const data = localStorage.getItem("onboarding_data");
     return data ? JSON.parse(data) : null;
@@ -100,6 +133,7 @@ export function AuthProvider({ children }) {
 
   const value = {
     user,
+    userProfile,
     isLoading,
     hasCompletedOnboarding,
     login,

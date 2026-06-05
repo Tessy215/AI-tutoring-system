@@ -32,7 +32,7 @@ export default function Tasks() {
         COLLECTIONS.TASKS,
         [
           Query.equal("userId", user.$id),
-          Query.orderDesc("$ocreatedAt")
+          Query.orderDesc("$createdAt")
         ]
       );
       setTasks(response.documents);

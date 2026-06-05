@@ -37,12 +37,15 @@ export default function SelectGoals() {
     // CHANGED: onboarding_subjects -> onboarding_interests to match SelectInterests.jsx
     const field = localStorage.getItem("onboarding_field");
     const courses = JSON.parse(localStorage.getItem("onboarding_courses") || "[]");
+    const role = localStorage.getItem("onboarding_role") || "student";
 
-    await completeOnboarding(field, courses, selectedGoals);
+
+    await completeOnboarding(field, courses, selectedGoals, role);
 
     // CHANGED: cleanup key name updated
     localStorage.removeItem("onboarding_field");
     localStorage.removeItem("onboarding_courses");
+    localStorage.removeItem("onboarding_role");
 
     setIsLoading(false);
     navigate("/");

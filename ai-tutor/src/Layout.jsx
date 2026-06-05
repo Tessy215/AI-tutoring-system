@@ -4,19 +4,37 @@ import { Menu, X, Home, CheckSquare, Lightbulb, BookOpen, TrendingUp, User, LogO
 
 import { useAuth } from "./Contexts/AuthContext.jsx";
 
-const navigation = [
+const studentNavigation = [
   { name: "Dashboard", path: "/", icon: Home },
   { name: "Tasks", path: "/tasks", icon: CheckSquare },
+  { name: "Resources", path: "/resourses", icon: BookOpen },
   { name: "Recommendations", path: "/recommendations", icon: Lightbulb },
   { name: "Assignments", path: "/assignments", icon: BookOpen },
   { name: "Progress", path: "/progress", icon: TrendingUp },
 ];
 
+const lecturerNavigation = [
+  { name: "Dashboard", path: "/", icon: Home },
+  {name: "Resourses", path: "/resourses", icon: BookOpen},
+  {name: "Assignments", path: "/assignments", icon: CheckSquare},
+  {name: "Students", path: "/students", icon: User},
+]
+
+const adminNavigation = [
+  { name: "Dashboard", path: "/", icon: Home },
+  { name: "System Logs", path: "/logs", icon: Lightbulb },
+  { name: "Manage Content", path: "/content", icon: BookOpen },
+  { name: "Analytics", path: "/analytics", icon: TrendingUp },
+  { name: "Materials", path: "/materials", icon: BookOpen },
+  {name: "Users", path: "/users", icon: User},
+  {name: "Settings", path: "/settings", icon: CheckSquare},
+]
+
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   // CHANGED: added user and logout from AuthContext to display user info and handle logout
-  const { user ,logout } = useAuth();
+  const { user , userProfile, logout } = useAuth();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -24,6 +42,11 @@ export default function Layout() {
     logout();
     navigate("/login");
   }
+
+  const navigation = 
+    userProfile?.role === "lecturer" ? lecturerNavigation :
+    userProfile?.role === "admin" ? adminNavigation :
+    studentNavigation;
 
   return (
     <div className="h-screen bg-gray-50 flex overflow-hidden">
@@ -100,7 +123,7 @@ export default function Layout() {
 
             <div className="flex-1 min-w-0"> 
               <p className="font-medium text-sm truncate">{user?.name || "user"}</p>
-              <p className="text-xs text-gray-500 truncate">{user?.grade || "Not set"}</p>
+              <p className="text-xs text-gray-500 truncate">{userProfile?.role || "student"}</p>
             </div>
 
             <User className="w-4 h-4 shrink-0"/>
