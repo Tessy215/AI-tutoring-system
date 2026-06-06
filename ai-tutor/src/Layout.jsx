@@ -7,7 +7,7 @@ import { useAuth } from "./Contexts/AuthContext.jsx";
 const studentNavigation = [
   { name: "Dashboard", path: "/", icon: Home },
   { name: "Tasks", path: "/tasks", icon: CheckSquare },
-  { name: "Resources", path: "/resourses", icon: BookOpen },
+  { name: "Resources", path: "/resources", icon: BookOpen },
   { name: "Recommendations", path: "/recommendations", icon: Lightbulb },
   { name: "Assignments", path: "/assignments", icon: BookOpen },
   { name: "Progress", path: "/progress", icon: TrendingUp },
@@ -15,7 +15,7 @@ const studentNavigation = [
 
 const lecturerNavigation = [
   { name: "Dashboard", path: "/", icon: Home },
-  {name: "Resourses", path: "/resourses", icon: BookOpen},
+  {name: "Resources", path: "/resources", icon: BookOpen},
   {name: "Assignments", path: "/assignments", icon: CheckSquare},
   {name: "Students", path: "/students", icon: User},
 ]

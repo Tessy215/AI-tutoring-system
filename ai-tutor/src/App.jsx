@@ -13,6 +13,7 @@ import SelectField from "./pages/onboarding/SelectField";
 import SelectCourses from "./pages/onboarding/SelectCourses";
 import SelectGoal from "./pages/onboarding/SelectGoal";
 import Profile from "./pages/Profile";
+import Resources from "./pages/Resources.jsx";
 
 
 import { useAuth } from "./Contexts/AuthContext.jsx";
@@ -68,6 +69,7 @@ function App() {
       >
         <Route index element={<Dashboard />} />
         <Route path="tasks" element={<Tasks />} />
+        <Route path="resources" element={<Resources />} />
         <Route path="recommendations" element={<Recommendations />} />
         <Route path="assignments" element={<Assignments />} />
         <Route path="progress" element={<Progress />} />
