@@ -14,6 +14,7 @@ import SelectCourses from "./pages/onboarding/SelectCourses";
 import SelectGoal from "./pages/onboarding/SelectGoal";
 import Profile from "./pages/Profile";
 import Resources from "./pages/Resources.jsx";
+import StudentsPage from "./pages/StudentsPage.jsx";
 
 
 import { useAuth } from "./Contexts/AuthContext.jsx";
@@ -74,6 +75,7 @@ function App() {
         <Route path="assignments" element={<Assignments />} />
         <Route path="progress" element={<Progress />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="students" element={<StudentsPage />} />
       </Route>
 
       {/* redirect any unknown routes to dashboard */}

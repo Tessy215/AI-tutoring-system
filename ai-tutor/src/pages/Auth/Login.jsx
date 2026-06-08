@@ -25,8 +25,8 @@ export default function Login() {
 
     if (!formData.password) {
       newErrors.password = "Password is required";
-    } else if (formData.password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters";
+    } else if (formData.password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters";
     }
 
     setErrors(newErrors);
@@ -46,7 +46,7 @@ export default function Login() {
       // CHANGED: set generic error message instead of showing raw error to user
       const message = _error.message || "";
 
-      if(message.includes("Invalid credentials") || message.includes("password")){
+      if(message.toLowerCase().includes("Invalid credentials") || message.toLowerCase().includes("password")){
         setErrors({ submit: "Wrong email or password. Please try again."});
       } else {
         setErrors({ submit: "Login failed. Please try again." });

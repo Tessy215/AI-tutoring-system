@@ -1,33 +1,35 @@
 import { useState } from "react";
 import { User, Mail, GraduationCap, Camera, Save, Edit2, BookOpen, Target } from "lucide-react";
-// CHANGED: updated import path since Profile.jsx is in pages/ not pages/auth/
 import { useAuth } from "../Contexts/AuthContext.jsx";
 
 export default function Profile() {
-  const { user, updateProfile, getOnboardingData } = useAuth();
+  const { user, userProfile, updateProfile, getOnboardingData } = useAuth();
   const onboardingData = getOnboardingData();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || "",
     email: user?.email || "",
-    grade: user?.grade || "",
+    grade: userProfile?.grade || "",
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsSaving(true);
-    setTimeout(() => {
-      updateProfile(formData);
+    try {
+      await updateProfile(formData);
       setIsEditing(false);
+    } catch (error) {
+      console.error("Failed to update profile:", error);
+    } finally {
       setIsSaving(false);
-    }, 500);
+    }
   };
 
   const handleCancel = () => {
     setFormData({
       name: user?.name || "",
       email: user?.email || "",
-      grade: user?.grade || "",
+      grade: userProfile?.grade || "",
     });
     setIsEditing(false);
   };
@@ -56,9 +58,15 @@ export default function Profile() {
               </div>
               <h3 className="font-semibold text-gray-900 text-lg">{user?.name}</h3>
               <p className="text-sm text-gray-600">
-                {user?.role === "student" ? "Student" : "Lecturer"}
+                {userProfile?.role === "student"
+                  ? "Student"
+                  : userProfile?.role === "lecturer"
+                    ? "Lecturer"
+                    : userProfile?.role === "admin"
+                      ? "Admin"
+                      : "Student"}
               </p>
-              <p className="text-sm text-gray-500 mt-1">{user?.grade}</p>
+              <p className="text-sm text-gray-500 mt-1">{userProfile?.grade || "Not set"}</p>
             </div>
 
             <div className="mt-6 pt-6 border-t border-gray-200">
@@ -66,16 +74,25 @@ export default function Profile() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">Member since</span>
                   <span className="font-medium text-gray-900">
-                    {user?.$createdAt 
-                      ? new Date(user.$createdAt).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })
-                      : "Unknown"
-                    }
+                    {user?.$createdAt
+                      ? new Date(user.$createdAt).toLocaleDateString("en-US", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })
+                      : "Unknown"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">Account type</span>
                   <span className="font-medium text-gray-900">
-                    {"Students"}
+                    {userProfile?.role === "student"
+                      ? "Student"
+                      : userProfile?.role === "lecturer"
+                        ? "Lecturer"
+                        : userProfile?.role === "admin"
+                          ? "Admin"
+                          : "Student"}
                   </span>
                 </div>
               </div>
@@ -149,7 +166,6 @@ export default function Profile() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {/* CHANGED: "Grade Level" → "Level / Year" to be universal */}
                   Level / Year
                 </label>
                 <div className="relative">
@@ -173,11 +189,9 @@ export default function Profile() {
 
             <div className="space-y-6">
               {/* Interests */}
-
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <BookOpen className="w-5 h-5 text-indigo-600" />
-                  {/* CHANGED: "My Subjects" → "My Interests" */}
                   <h3 className="font-medium text-gray-900">My Interests</h3>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -187,7 +201,6 @@ export default function Profile() {
                         key={index}
                         className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-sm capitalize"
                       >
-                        {/* CHANGED: replace dashes with spaces for display */}
                         {course.replace(/-/g, " ")}
                       </span>
                     ))
@@ -223,5 +236,5 @@ export default function Profile() {
         </div>
       </div>
     </div>
-  )
+  );
 }
