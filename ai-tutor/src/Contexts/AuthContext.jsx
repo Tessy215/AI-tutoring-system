@@ -44,10 +44,21 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const login = async (email, password) => {
+ const login = async (email, password) => {
+  try {
+    // optional: check if already logged in
+    try {
+      await account.get();
+      await account.deleteSession("current");
+    } catch (e) {
+      // no active session — ignore
+    }
+
     await account.createEmailPasswordSession(email, password);
+
     const currentUser = await account.get();
     setUser(currentUser);
+
     const profile = await databases.listDocuments(
       DATABASE_ID,
       COLLECTIONS.USERS,
@@ -59,17 +70,38 @@ export function AuthProvider({ children }) {
     }
 
     return currentUser;
-  };
+
+  } catch (error) {
+    console.error("LOGIN ERROR:", error);
+    throw error;
+  }
+};
 
   const register = async (name, email, password) => {
-    await account.create(ID.unique(), email, password, name);
+  try {
+    console.log("Creating account...");
+
+    await account.create(
+      ID.unique(),
+      email,
+      password,
+      name
+    );
+
+    console.log("Account created");
+
     await login(email, password);
 
     const newUser = await account.get();
     setUser(newUser);
     setHasCompletedOnboarding(false);
+
     return newUser;
-  };
+  } catch (error) {
+    console.error("REGISTER ERROR:", error);
+    throw error;
+  }
+};
 
   const logout = async () => {
     await account.deleteSession("current");
