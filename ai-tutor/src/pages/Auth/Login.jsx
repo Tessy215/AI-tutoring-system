@@ -41,7 +41,7 @@ export default function Login() {
     setIsLoading(true);
     try {
       await login(formData.email, formData.password);
-      navigate("/");
+      navigate("/dashboard");
     } catch (_error) {
       // CHANGED: set generic error message instead of showing raw error to user
       const message = _error.message || "";

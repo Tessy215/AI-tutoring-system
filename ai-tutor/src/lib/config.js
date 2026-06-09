@@ -7,4 +7,5 @@ export const COLLECTIONS = {
   ASSIGNMENTS: "assignments",
   PROGRESS: "progress",
   RESOURCES: "resourses",
+  NOTIFICATIONS: "notifications",
 };

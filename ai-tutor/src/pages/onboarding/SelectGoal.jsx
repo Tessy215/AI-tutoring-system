@@ -48,7 +48,7 @@ export default function SelectGoals() {
     localStorage.removeItem("onboarding_role");
 
     setIsLoading(false);
-    navigate("/");
+    navigate("/dashboard");
   };
 
   return (
