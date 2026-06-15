@@ -55,13 +55,13 @@ export const getUnreadCount = async (userId) => {
       [
         Query.equal("userId", userId),
         Query.equal("read", false),
-        Query.limit(0) // Only get count, not documents
+        Query.limit(1) 
       ]
     );
     return response.total;
   } catch (error) {
     console.error("Error getting unread count:", error);
-    return 0;
+    return 1;
   }
 };
 
