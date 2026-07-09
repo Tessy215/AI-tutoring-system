@@ -54,71 +54,89 @@ export default function Progress() {
     );
   }
 
-  const loadProgressData = async () => {
-    setLoading(true);
-    try {
-      // 1. Load assignments with grades
-      const assignmentsResponse = await databases.listDocuments(
-        DATABASE_ID,
-        COLLECTIONS.ASSIGNMENTS,
-        [
-          Query.equal("userId", user.$id),
-          Query.isNotNull("grade"),
-          Query.orderDesc("$createdAt")
-        ]
-      );
+const loadProgressData = async () => {
+  setLoading(true);
+  try {
+    
+    if (!user?.$id) {
+      console.error("No user ID found!");
+      setLoading(false);
+      return;
+    }
+    
+    // 1. Load assignments where assignedTo = "all" OR assignedTo = user.id
+    // AND the assignment has a grade
+    const assignmentsResponse = await databases.listDocuments(
+      DATABASE_ID,
+      COLLECTIONS.ASSIGNMENTS,
+      [
+        Query.or([
+          Query.equal("assignedTo", user.$id),
+          Query.equal("assignedTo", "all")
+        ]),
+        Query.isNotNull("grade"),
+        Query.orderDesc("$createdAt")
+      ]
+    );
+    
+    const formattedAssignments = assignmentsResponse.documents.map(doc => {
+      const maxScore = doc.maxScore || 100;
+      const percentage = (doc.grade / maxScore) * 100;
       
-      const formattedAssignments = assignmentsResponse.documents.map(doc => ({
+      return {
         id: doc.$id,
-        subject: doc.subject,
+        subject: doc.subject || "Uncategorized",
         score: doc.grade,
-        maxScore: doc.maxScore || 100,
-        percentage: (doc.grade / (doc.maxScore || 100)) * 100,
+        maxScore: maxScore,
+        percentage: percentage,
         date: doc.submissionDate ? doc.submissionDate.split("T")[0] : doc.$createdAt.split("T")[0],
         type: "assignment",
-        title: doc.title,
+        title: doc.title || "Untitled",
         source: "assignment",
         note: doc.feedback || ""
-      }));
-      
-      setAssignmentsData(formattedAssignments);
-      
-      // 2. Load manual progress entries
-      const progressResponse = await databases.listDocuments(
-        DATABASE_ID,
-        COLLECTIONS.PROGRESS,
-        [
-          Query.equal("userId", user.$id),
-          Query.orderDesc("date")
-        ]
-      );
-      
-      const formattedProgress = progressResponse.documents.map(doc => ({
-        id: doc.$id,
-        subject: doc.subject,
-        score: doc.score,
-        maxScore: 100,
-        percentage: doc.score,
-        date: doc.date || doc.$createdAt.split("T")[0],
-        type: doc.type || "quiz",
-        source: "manual",
-        note: doc.note || "",
-        title: `${doc.type || "Quiz"} - ${doc.subject}`
-      }));
-      
-      setManualEntries(formattedProgress);
-      
-      // 3. Combine all data for charts
-      const combined = [...formattedAssignments, ...formattedProgress];
-      combined.sort((a, b) => new Date(a.date) - new Date(b.date));
-      setProgressData(combined);
-      
-    } catch (error) {
-      console.error("Error loading progress data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      };
+    });
+    
+    setAssignmentsData(formattedAssignments);
+    
+    // 2. Load manual progress entries
+    const progressResponse = await databases.listDocuments(
+      DATABASE_ID,
+      COLLECTIONS.PROGRESS,
+      [
+        Query.equal("userId", user.$id),
+        Query.orderDesc("date")
+      ]
+    );
+    
+    const formattedProgress = progressResponse.documents.map(doc => ({
+      id: doc.$id,
+      subject: doc.subject || "Uncategorized",
+      score: doc.score || 0,
+      maxScore: 100,
+      percentage: doc.score || 0,
+      date: doc.date || doc.$createdAt.split("T")[0],
+      type: doc.type || "quiz",
+      source: "manual",
+      note: doc.note || "",
+      title: `${doc.type || "Quiz"} - ${doc.subject || "Untitled"}`
+    }));
+    
+    setManualEntries(formattedProgress);
+    
+    // 3. Combine all data for charts
+    const combined = [...formattedAssignments, ...formattedProgress];
+    combined.sort((a, b) => new Date(a.date) - new Date(b.date));
+    setProgressData(combined);
+    
+    console.log("Combined entries:", combined.length);
+    
+  } catch (error) {
+    console.error("Error loading progress data:", error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleAddManualEntry = async () => {
     if (!formData.subject || !formData.score) {

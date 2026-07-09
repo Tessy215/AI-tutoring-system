@@ -43,8 +43,10 @@ export default function StudentDashboard() {
       );
       
       const gradedAssignments = assignmentsRes.documents.filter(a => a.grade !== null && a.grade !== undefined);
+      
+      // Fix: Calculate average grade as percentage
       const avgGrade = gradedAssignments.length > 0 
-        ? gradedAssignments.reduce((sum, a) => sum + a.grade, 0) / gradedAssignments.length 
+        ? gradedAssignments.reduce((sum, a) => sum + ((a.grade / a.maxScore) * 100), 0) / gradedAssignments.length 
         : 0;
       
       setStats({
@@ -152,7 +154,7 @@ export default function StudentDashboard() {
         <div className="bg-white rounded-xl border border-gray-200">
           <div className="p-4 border-b border-gray-200 flex justify-between items-center">
             <h3 className="font-semibold text-gray-900">Recent Tasks</h3>
-            <Link to="/tasks" className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center">View All <ChevronRight className="w-4 h-4" /></Link>
+            <Link to="/dashboard/tasks" className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center">View All <ChevronRight className="w-4 h-4" /></Link>
           </div>
           <div className="divide-y divide-gray-200">
             {stats.recentTasks.length === 0 ? (
@@ -179,30 +181,41 @@ export default function StudentDashboard() {
         <div className="bg-white rounded-xl border border-gray-200">
           <div className="p-4 border-b border-gray-200 flex justify-between items-center">
             <h3 className="font-semibold text-gray-900">Recent Assignments</h3>
-            <Link to="/assignments" className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center">View All <ChevronRight className="w-4 h-4" /></Link>
+            <Link to="/dashboard/assignments" className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center">View All <ChevronRight className="w-4 h-4" /></Link>
           </div>
           <div className="divide-y divide-gray-200">
             {stats.recentAssignments.length === 0 ? (
               <div className="p-8 text-center text-gray-500">No assignments yet.</div>
             ) : (
-              stats.recentAssignments.map((assignment) => (
-                <div key={assignment.$id} className="p-4">
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="font-medium text-gray-900">{assignment.title}</span>
-                    {assignment.grade !== null && <span className={`text-sm font-semibold ${getGradeColor(assignment.grade)}`}>{assignment.grade}%</span>}
+              stats.recentAssignments.map((assignment) => {
+                // Calculate percentage correctly
+                const percentage = assignment.maxScore > 0 
+                  ? Math.round((assignment.grade / assignment.maxScore) * 100) 
+                  : 0;
+                
+                return (
+                  <div key={assignment.$id} className="p-4">
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="font-medium text-gray-900">{assignment.title}</span>
+                      {assignment.grade !== null && (
+                        <span className={`text-sm font-semibold ${getGradeColor(percentage)}`}>
+                          {percentage}%
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500">{assignment.subject}</p>
+                    <div className="flex justify-between items-center mt-2">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        assignment.status === "graded" ? "bg-green-100 text-green-700" : 
+                        assignment.status === "submitted" ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"
+                      }`}>
+                        {assignment.status || "pending"}
+                      </span>
+                      {assignment.dueDate && <span className="text-xs text-gray-400">Due: {new Date(assignment.dueDate).toLocaleDateString()}</span>}
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-500">{assignment.subject}</p>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      assignment.status === "graded" ? "bg-green-100 text-green-700" : 
-                      assignment.status === "submitted" ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"
-                    }`}>
-                      {assignment.status || "pending"}
-                    </span>
-                    {assignment.dueDate && <span className="text-xs text-gray-400">Due: {new Date(assignment.dueDate).toLocaleDateString()}</span>}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

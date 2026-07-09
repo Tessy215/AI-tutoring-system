@@ -83,7 +83,7 @@ export default function StudentsPage() {
       
       const gradedAssignments = assignmentsRes.documents.filter(a => a.grade !== null);
       const avgGrade = gradedAssignments.length > 0 
-        ? gradedAssignments.reduce((sum, a) => sum + a.grade, 0) / gradedAssignments.length 
+        ? gradedAssignments.reduce((sum, a) => sum + ((a.grade / a.maxScore) * 100), 0) / gradedAssignments.length 
         : 0;
       
       // Load tasks for this student
@@ -145,9 +145,11 @@ export default function StudentsPage() {
     setShowDetailModal(true);
   };
 
-  const getGradeColor = (grade) => {
-    if (grade >= 80) return "text-green-600";
-    if (grade >= 60) return "text-yellow-600";
+  const getGradeColor = (grade, maxScore) => {
+    if(!maxScore || maxScore === 0) return "text-gray-500";
+    const percentage = (grade / maxScore) * 100;
+    if (percentage >= 80) return "text-green-600";
+    if (percentage >= 60) return "text-yellow-600";
     return "text-red-600";
   };
 
@@ -182,7 +184,7 @@ export default function StudentsPage() {
               type="text"
               placeholder="Search by name or email..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -190,12 +192,17 @@ export default function StudentsPage() {
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <select
               value={selectedField}
-              onChange={(e) => setSelectedField(e.target.value)}
+              onChange={e => setSelectedField(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 appearance-none"
             >
               <option value="all">All Fields</option>
               {fields.map(field => (
-                <option key={field} value={field}>{field}</option>
+                <option
+                  key={field}
+                  value={field}
+                >
+                  {field}
+                </option>
               ))}
             </select>
           </div>
@@ -219,20 +226,26 @@ export default function StudentsPage() {
             <tbody className="divide-y divide-gray-200">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="p-8 text-center text-gray-500">
+                  <td
+                    colSpan="6"
+                    className="p-8 text-center text-gray-500"
+                  >
                     No students found
                   </td>
                 </tr>
               ) : (
-                filteredStudents.map((student) => {
+                filteredStudents.map(student => {
                   const progress = studentProgress?.[student.$id] || {
                     avgGrade: 0,
                     totalTasks: 0,
-                    completedTasks: 0
-                  };
-                  
+                    completedTasks: 0,
+                  }
+
                   return (
-                    <tr key={student.$id} className="hover:bg-gray-50">
+                    <tr
+                      key={student.$id}
+                      className="hover:bg-gray-50"
+                    >
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
@@ -252,7 +265,10 @@ export default function StudentsPage() {
                       <td className="p-4">
                         <div className="flex flex-wrap gap-1">
                           {student.courses?.slice(0, 2).map((course, idx) => (
-                            <span key={idx} className="text-xs px-2 py-0.5 bg-gray-100 rounded-full capitalize">
+                            <span
+                              key={idx}
+                              className="text-xs px-2 py-0.5 bg-gray-100 rounded-full capitalize"
+                            >
                               {course.replace(/-/g, " ").slice(0, 15)}
                             </span>
                           ))}
@@ -273,11 +289,15 @@ export default function StudentsPage() {
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm">{progress.completedTasks || 0}/{progress.totalTasks || 0}</span>
+                          <span className="text-sm">
+                            {progress.completedTasks || 0}/{progress.totalTasks || 0}
+                          </span>
                           <div className="w-16 h-1 bg-gray-200 rounded-full overflow-hidden">
-                            <div 
+                            <div
                               className="h-full bg-green-500 rounded-full"
-                              style={{ width: `${progress.totalTasks ? (progress.completedTasks / progress.totalTasks) * 100 : 0}%` }}
+                              style={{
+                                width: `${progress.totalTasks ? (progress.completedTasks / progress.totalTasks) * 100 : 0}%`,
+                              }}
                             />
                           </div>
                         </div>
@@ -292,7 +312,7 @@ export default function StudentsPage() {
                         </button>
                       </td>
                     </tr>
-                  );
+                  )
                 })
               )}
             </tbody>
@@ -317,7 +337,10 @@ export default function StudentsPage() {
                   <p className="text-sm text-gray-500">{selectedStudent.email}</p>
                 </div>
               </div>
-              <button onClick={() => setShowDetailModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -337,8 +360,8 @@ export default function StudentsPage() {
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <p className="text-sm text-gray-500">Member Since</p>
                   <p className="font-medium">
-                    {selectedStudent.$createdAt 
-                      ? new Date(selectedStudent.$createdAt).toLocaleDateString() 
+                    {selectedStudent.$createdAt
+                      ? new Date(selectedStudent.$createdAt).toLocaleDateString()
                       : "Unknown"}
                   </p>
                 </div>
@@ -351,35 +374,31 @@ export default function StudentsPage() {
               {/* Progress Stats */}
               {studentProgress?.[selectedStudent.$id] && (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Average Grade */}
                     <div className="p-4 bg-green-50 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
                         <Award className="w-5 h-5 text-green-600" />
                         <span className="font-medium">Average Grade</span>
                       </div>
-                      <p className={`text-3xl font-bold ${getGradeColor(studentProgress[selectedStudent.$id].avgGrade)}`}>
+                      <p
+                        className={`text-3xl font-bold ${getGradeColor(studentProgress[selectedStudent.$id].avgGrade, 100)}`}
+                      >
                         {studentProgress[selectedStudent.$id].avgGrade}%
                       </p>
                     </div>
+
+                    {/* Assignments - No Tasks */}
                     <div className="p-4 bg-blue-50 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
                         <BookOpen className="w-5 h-5 text-blue-600" />
                         <span className="font-medium">Assignments</span>
                       </div>
                       <p className="text-3xl font-bold text-gray-900">
-                        {studentProgress[selectedStudent.$id].gradedAssignments}/{studentProgress[selectedStudent.$id].totalAssignments}
+                        {studentProgress[selectedStudent.$id].gradedAssignments}/
+                        {studentProgress[selectedStudent.$id].totalAssignments}
                       </p>
                       <p className="text-sm text-gray-500">graded</p>
-                    </div>
-                    <div className="p-4 bg-purple-50 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CheckCircle className="w-5 h-5 text-purple-600" />
-                        <span className="font-medium">Tasks</span>
-                      </div>
-                      <p className="text-3xl font-bold text-gray-900">
-                        {studentProgress[selectedStudent.$id].completedTasks}/{studentProgress[selectedStudent.$id].totalTasks}
-                      </p>
-                      <p className="text-sm text-gray-500">completed</p>
                     </div>
                   </div>
 
@@ -388,22 +407,35 @@ export default function StudentsPage() {
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-3">Recent Assignments</h3>
                       <div className="space-y-2">
-                        {studentProgress[selectedStudent.$id].assignments.map((assignment) => (
-                          <div key={assignment.$id} className="p-3 bg-gray-50 rounded-lg flex justify-between items-center">
+                        {studentProgress[selectedStudent.$id].assignments.map(assignment => (
+                          <div
+                            key={assignment.$id}
+                            className="p-3 bg-gray-50 rounded-lg flex justify-between items-center"
+                          >
                             <div>
                               <p className="font-medium text-gray-900">{assignment.title}</p>
                               <p className="text-sm text-gray-500">{assignment.subject}</p>
                             </div>
                             <div className="text-right">
                               {assignment.grade !== null ? (
-                                <p className={`font-semibold ${getGradeColor(assignment.grade)}`}>
-                                  {assignment.grade}%
-                                </p>
+                                <div>
+                                  <p
+                                    className={`font-semibold ${getGradeColor(assignment.grade, assignment.maxScore)}`}
+                                  >
+                                    {assignment.grade}/{assignment.maxScore}
+                                    <span className="text-xs text-gray-400 ml-1">
+                                      ({Math.round((assignment.grade / assignment.maxScore) * 100)}
+                                      %)
+                                    </span>
+                                  </p>
+                                </div>
                               ) : (
                                 <p className="text-sm text-yellow-600">Pending</p>
                               )}
                               {assignment.dueDate && (
-                                <p className="text-xs text-gray-400">Due: {new Date(assignment.dueDate).toLocaleDateString()}</p>
+                                <p className="text-xs text-gray-400">
+                                  Due: {new Date(assignment.dueDate).toLocaleDateString()}
+                                </p>
                               )}
                             </div>
                           </div>
@@ -418,7 +450,10 @@ export default function StudentsPage() {
                       <h3 className="font-semibold text-gray-900 mb-3">Enrolled Courses</h3>
                       <div className="flex flex-wrap gap-2">
                         {selectedStudent.courses.map((course, idx) => (
-                          <span key={idx} className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-sm capitalize">
+                          <span
+                            key={idx}
+                            className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-sm capitalize"
+                          >
                             {course.replace(/-/g, " ")}
                           </span>
                         ))}
@@ -432,7 +467,10 @@ export default function StudentsPage() {
                       <h3 className="font-semibold text-gray-900 mb-3">Learning Goals</h3>
                       <div className="flex flex-wrap gap-2">
                         {selectedStudent.goals.map((goal, idx) => (
-                          <span key={idx} className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm capitalize">
+                          <span
+                            key={idx}
+                            className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm capitalize"
+                          >
                             {goal.replace(/-/g, " ")}
                           </span>
                         ))}
@@ -451,16 +489,20 @@ export default function StudentsPage() {
               >
                 Close
               </button>
-              <Link
-                to={`/progress?student=${selectedStudent.$id}`}
+
+              {/* // future feature iew Full Progress page for students
+    Currently disabled because Progress page is student-only.
+    When we implement class system, we can enable this. */}
+              {/* <Link
+                to={`/dashboard/progress?student=${selectedStudent.$id}`}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
               >
                 View Full Progress
-              </Link>
+              </Link> */}
             </div>
           </div>
         </div>
       )}
     </div>
-  );
+  )
 }

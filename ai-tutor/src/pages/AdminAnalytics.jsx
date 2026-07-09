@@ -62,7 +62,7 @@ export default function AdminAnalytics() {
       const assignmentsRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.ASSIGNMENTS);
       const gradedAssignments = assignmentsRes.documents.filter(a => a.grade !== null);
       const avgGrade = gradedAssignments.length > 0
-        ? gradedAssignments.reduce((sum, a) => sum + a.grade, 0) / gradedAssignments.length
+        ? gradedAssignments.reduce((sum, a) => sum + ((a.grade / a.maxScore) * 100), 0) / gradedAssignments.length
         : 0;
       
       // Calculate completion rate

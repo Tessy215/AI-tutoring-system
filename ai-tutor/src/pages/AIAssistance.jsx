@@ -7,6 +7,8 @@ import {
   Plus, Mic, Image, ChevronDown, ChevronUp
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { sendChatMessage } from "../lib/aiService.js";
+
 
 export default function AIAssistant() {
   const { user, userProfile } = useAuth();
@@ -23,6 +25,7 @@ export default function AIAssistant() {
   const [showQuickActions, setShowQuickActions] = useState(true);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [copiedMessageId, setCopiedMessageId] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -38,59 +41,60 @@ export default function AIAssistant() {
     { icon: Zap, label: "Study tips", prompt: "Give me study tips for " },
   ];
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim() && !uploadedFile) return;
 
-    // Add user message
-    const userMessage = {
-      id: Date.now(),
-      role: "user",
-      content: inputMessage,
+const handleQuickAction = (prompt) => {
+  setInputMessage(prompt);
+}
+const handleSendMessage = async () => {
+  if (!inputMessage.trim() && !uploadedFile) return
+
+  const userMessage = {
+    id: Date.now(),
+    role: "user",
+    content: inputMessage,
+    timestamp: new Date(),
+  }
+  setMessages(prev => [...prev, userMessage])
+  setInputMessage("")
+  setIsLoading(true)
+
+  if(uploadedFile) {
+    setUploadedFile(null);
+  }
+
+  try {
+    // Call the real AI backend
+    const result = await sendChatMessage(
+      inputMessage,
+      user.$id,
+      sessionId // You'll need to store this from previous responses
+    )
+
+    const assistantMessage = {
+      id: Date.now() + 1,
+      role: "assistant",
+      content: result.response,
       timestamp: new Date(),
-      file: uploadedFile ? { name: uploadedFile.name, type: uploadedFile.type } : null,
-    };
-    setMessages(prev => [...prev, userMessage]);
-    setInputMessage("");
-    setIsLoading(true);
+    }
+    setMessages(prev => [...prev, assistantMessage])
 
-    // Clear uploaded file after sending
-    if (uploadedFile) {
-      setUploadedFile(null);
+    if (result.sessionId) {
+      setSessionId(result.sessionId);
     }
 
-    // TODO: Connect to AI API here
-    // For now, simulate AI response
-    setTimeout(() => {
-      const assistantMessage = {
-        id: Date.now() + 1,
-        role: "assistant",
-        content: getSimulatedResponse(inputMessage, uploadedFile),
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, assistantMessage]);
-      setIsLoading(false);
-    }, 1500);
-  };
-
-  const getSimulatedResponse = (message, file) => {
-    if (file) {
-      return `I see you uploaded "${file.name}". Once I'm connected to an AI API, I'll be able to:\n\n• Summarize the content of this document\n• Extract key points and important information\n• Answer questions about the document\n• Generate practice questions based on the material\n\nFor now, this is a preview of what the AI Tutor Assistant will be able to do! 🚀`;
+  } catch (error) {
+    console.error("AI Error:", error)
+    const errorMessage = {
+      id: Date.now() + 1,
+      role: "assistant",
+      content: "Sorry, I'm having trouble connecting. Please make sure the AI backend is running.",
+      timestamp: new Date(),
     }
-    
-    if (message.toLowerCase().includes("explain")) {
-      return "Great question! Once connected to the AI API, I'll be able to provide detailed explanations of any academic topic. I can break down complex concepts into simple terms, provide examples, and help you understand difficult subjects.\n\nWhat specific topic would you like me to explain?";
-    }
-    
-    if (message.toLowerCase().includes("question") || message.toLowerCase().includes("quiz")) {
-      return "I can generate practice questions to help you study! When the AI API is connected, I'll be able to:\n\n• Create multiple-choice questions\n• Generate short answer questions\n• Provide detailed answer explanations\n• Adjust difficulty based on your level\n\nWhat subject would you like questions for?";
-    }
-    
-    return "Thanks for your message! The AI Tutor Assistant is currently in preview mode. When connected to an AI API (Gemini or OpenAI), I'll be able to:\n\n• Answer any academic questions\n• Explain concepts in detail\n• Summarize documents and resources\n• Generate practice quizzes and flashcards\n• Provide personalized study recommendations\n\nWhat would you like help with today?";
-  };
-
-  const handleQuickAction = (prompt) => {
-    setInputMessage(prompt);
-  };
+    setMessages(prev => [...prev, errorMessage])
+  } finally {
+    setIsLoading(false)
+  }
+}
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];

@@ -124,6 +124,12 @@ export default function Tasks() {
     }
   };
 
+  const isOverdue = (task) => {
+    if (!task.dueDate) return false;
+    if (task.completed) return false;
+    return new Date(task.dueDate) < new Date();
+  }
+
   const activeTasks = tasks.filter(t => !t.completed);
   const completedTasks = tasks.filter(t => t.completed);
 
@@ -134,6 +140,11 @@ export default function Tasks() {
           <h1 className="text-3xl font-bold">Tasks</h1>
           <p className="text-gray-600 mt-1">
             {activeTasks.length} active, {completedTasks.length} completed
+            {activeTasks.filter(t => isOverdue(t)).length > 0 && (
+              <span className="ml-2 text-red-600 font-medium">
+                • {activeTasks.filter(t => isOverdue(t)).length} overdue
+              </span>
+            )}
           </p>
         </div>
         <button
@@ -267,17 +278,35 @@ export default function Tasks() {
                         onClick={() => toggleTask(task.$id, task.completed)}
                         className="mt-1"
                       >
-                        <Circle className="w-5 h-5 text-gray-400" />
+                        <Circle
+                          className={`w-5 h-5 ${isOverdue(task) ? "text-red-500" : "text-gray-400"}`}
+                        />
                       </button>
                       <div className="flex-1">
-                        <p className="font-medium">{task.title}</p>
-                        {/* CHANGED: category and date on same line */}
+                        <p
+                          className={`font-medium ${isOverdue(task) ? "text-red-600" : "text-gray-900"}`}
+                        >
+                          {task.title}
+                          {isOverdue(task) && (
+                            <span className="ml-2 text-xs text-red-500 font-normal">(Overdue)</span>
+                          )}
+                        </p>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span className="text-sm text-gray-500">{task.category}</span>
+                          <span
+                            className={`text-sm ${isOverdue(task) ? "text-red-500" : "text-gray-500"}`}
+                          >
+                            {task.category}
+                          </span>
                           {task.dueDate && (
                             <>
-                              <span className="text-gray-300">•</span>
-                              <span className="flex items-center gap-1 text-sm text-gray-500">
+                              <span
+                                className={`text-sm ${isOverdue(task) ? "text-red-500" : "text-gray-300"}`}
+                              >
+                                •
+                              </span>
+                              <span
+                                className={`flex items-center gap-1 text-sm ${isOverdue(task) ? "text-red-500" : "text-gray-500"}`}
+                              >
                                 <Calendar className="w-3 h-3" />
                                 {task.dueDate}
                               </span>
@@ -288,18 +317,22 @@ export default function Tasks() {
                     </div>
                     {/* CHANGED: priority + edit + delete on right side */}
                     <div className="flex items-center gap-2">
-                      {task.priority && (
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${getPriorityColor(task.priority)}`}
-                        >
-                          {task.priority}
+                      {isOverdue(task) ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-500 text-white">
+                          Overdue
                         </span>
+                      ) : (
+                        task.priority && (
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full font-medium ${getPriorityColor(task.priority)}`}
+                          >
+                            {task.priority}
+                          </span>
+                        )
                       )}
-
                       <button onClick={() => setEditingTask(task)}>
                         <Edit2 className="w-4 h-4 text-indigo-500 hover:text-indigo-700" />
                       </button>
-
                       <button onClick={() => deleteTask(task.$id)}>
                         <Trash2 className="w-4 h-4 text-red-500 hover:text-red-700" />
                       </button>

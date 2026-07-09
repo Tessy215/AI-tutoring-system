@@ -17,6 +17,7 @@ export default function Recommendations() {
   const [performanceData, setPerformanceData] = useState({
     weakSubjects: [],
     strongSubjects: [],
+    averageSubjects: [],
     overallAvg: 0,
     pendingTasks: 0,
     unreadNotifications: 0,
@@ -31,13 +32,13 @@ export default function Recommendations() {
   const loadRecommendations = async () => {
     setLoading(true);
     try {
-      // Load assignments with grades
+      // Load assignments with grades - using assignedTo
       const assignmentsRes = await databases.listDocuments(
         DATABASE_ID,
         COLLECTIONS.ASSIGNMENTS,
         [
           Query.or([
-            Query.equal("userId", user.$id),
+            Query.equal("assignedTo", user.$id),
             Query.equal("assignedTo", "all")
           ]),
           Query.isNotNull("grade")
@@ -51,48 +52,46 @@ export default function Recommendations() {
         [Query.equal("userId", user.$id)]
       );
       
-      // Load resources for recommendations
-      const resourcesRes = await databases.listDocuments(
-        DATABASE_ID,
-        COLLECTIONS.RESOURCES
-      );
-      
-      // Analyze subject performance
+      // Analyze subject performance - using percentage
       const subjectGrades = {};
       assignmentsRes.documents.forEach(assignment => {
-        const subject = assignment.subject;
-        const grade = assignment.grade;
+        const subject = assignment.subject || "Uncategorized";
         if (!subjectGrades[subject]) {
-          subjectGrades[subject] = { total: 0, count: 0, grades: [] };
+          subjectGrades[subject] = { total: 0, count: 0 };
         }
-        subjectGrades[subject].total += grade;
+        const percentage = (assignment.grade / assignment.maxScore) * 100;
+        subjectGrades[subject].total += percentage;
         subjectGrades[subject].count++;
-        subjectGrades[subject].grades.push(grade);
       });
       
       const weakSubjects = [];
+      const averageSubjects = [];
       const strongSubjects = [];
       
       for (const [subject, data] of Object.entries(subjectGrades)) {
         const avg = data.total / data.count;
-        if (avg < 65) {
+        if (avg < 50) {
           weakSubjects.push({ subject, avg, count: data.count });
+        } else if (avg >= 50 && avg < 70) {
+          averageSubjects.push({ subject, avg, count: data.count });
         } else if (avg >= 80) {
           strongSubjects.push({ subject, avg, count: data.count });
         }
       }
       
       weakSubjects.sort((a, b) => a.avg - b.avg);
+      averageSubjects.sort((a, b) => a.avg - b.avg);
       strongSubjects.sort((a, b) => b.avg - a.avg);
       
       const overallAvg = assignmentsRes.documents.length > 0
-        ? assignmentsRes.documents.reduce((sum, a) => sum + a.grade, 0) / assignmentsRes.documents.length
+        ? assignmentsRes.documents.reduce((sum, a) => sum + ((a.grade / a.maxScore) * 100), 0) / assignmentsRes.documents.length
         : 0;
       
       const pendingTasks = tasksRes.documents.filter(t => !t.completed).length;
       
       setPerformanceData({
         weakSubjects,
+        averageSubjects,
         strongSubjects,
         overallAvg: Math.round(overallAvg),
         pendingTasks,
@@ -102,7 +101,7 @@ export default function Recommendations() {
       // Generate recommendations
       const generatedRecommendations = [];
       
-      // 1. Subject improvement recommendations
+      // 1. Subject improvement recommendations - only for <50%
       weakSubjects.forEach(subject => {
         generatedRecommendations.push({
           id: `weak-${subject.subject}`,
@@ -116,17 +115,36 @@ export default function Recommendations() {
         });
       });
       
-      // 2. Resource recommendations based on weak subjects
-      if (weakSubjects.length > 0) {
+      // 2. Average subject recommendations - 50-69%
+      averageSubjects.forEach(subject => {
+        generatedRecommendations.push({
+          id: `average-${subject.subject}`,
+          title: `Strengthen Your ${subject.subject} Foundation`,
+          description: `Your average in ${subject.subject} is ${Math.round(subject.avg)}%. Keep practicing to reach the next level.`,
+          type: "improvement",
+          priority: "medium",
+          action: "Study",
+          actionLink: "/dashboard/resources",
+          icon: Target,
+        });
+      });
+      
+      // 3. Resource recommendations
+      if (weakSubjects.length > 0 || averageSubjects.length > 0) {
+        const resourcesRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.RESOURCES);
+        const weakSubjectNames = weakSubjects.map(s => s.subject);
+        const avgSubjectNames = averageSubjects.map(s => s.subject);
+        const allSubjectsToHelp = [...weakSubjectNames, ...avgSubjectNames];
+        
         const relevantResources = resourcesRes.documents.filter(r => 
-          weakSubjects.some(w => r.course?.toLowerCase().includes(w.subject.toLowerCase()))
+          allSubjectsToHelp.some(s => r.course?.toLowerCase().includes(s.toLowerCase()))
         );
         
         if (relevantResources.length > 0) {
           generatedRecommendations.push({
             id: "resources",
             title: "Recommended Study Materials",
-            description: `We found ${relevantResources.length} resources that can help with ${weakSubjects[0]?.subject || "your weak subjects"}.`,
+            description: `We found ${relevantResources.length} resources to help strengthen your understanding.`,
             type: "resource",
             priority: "medium",
             action: "View Resources",
@@ -136,7 +154,7 @@ export default function Recommendations() {
         }
       }
       
-      // 3. Task completion recommendation
+      // 4. Task completion recommendation
       if (pendingTasks > 0) {
         generatedRecommendations.push({
           id: "tasks",
@@ -150,8 +168,8 @@ export default function Recommendations() {
         });
       }
       
-      // 4. Overall grade recommendation
-      if (overallAvg < 70 && overallAvg > 0) {
+      // 5. Overall grade recommendation
+      if (overallAvg < 50 && overallAvg > 0) {
         generatedRecommendations.push({
           id: "overall",
           title: "Boost Your Overall Grade",
@@ -161,6 +179,17 @@ export default function Recommendations() {
           action: "View Progress",
           actionLink: "/dashboard/progress",
           icon: Target,
+        });
+      } else if (overallAvg >= 50 && overallAvg < 70) {
+        generatedRecommendations.push({
+          id: "overall-average",
+          title: "Keep Building Momentum",
+          description: `You're averaging ${Math.round(overallAvg)}%. Consistent effort will help you improve further.`,
+          type: "improvement",
+          priority: "medium",
+          action: "View Progress",
+          actionLink: "/dashboard/progress",
+          icon: TrendingUp,
         });
       } else if (overallAvg >= 85 && overallAvg > 0) {
         generatedRecommendations.push({
@@ -175,7 +204,7 @@ export default function Recommendations() {
         });
       }
       
-      // 5. Goals-based recommendation
+      // 6. Goals-based recommendation
       if (userProfile?.goals && userProfile.goals.length > 0) {
         const goal = userProfile.goals[0];
         const goalMessages = {
@@ -199,7 +228,7 @@ export default function Recommendations() {
         });
       }
       
-      // 6. AI Assistant recommendation (always show)
+      // 7. AI Assistant recommendation
       generatedRecommendations.push({
         id: "ai-assistant",
         title: "Need Help? Ask AI Tutor",
@@ -236,7 +265,14 @@ export default function Recommendations() {
     }
   };
 
-  // Lecturer view - show class recommendations
+  const getScoreColor = (score) => {
+    if (score < 50) return "text-red-600 bg-red-50 border-red-200";
+    if (score < 70) return "text-yellow-600 bg-yellow-50 border-yellow-200";
+    if (score < 85) return "text-green-600 bg-green-50 border-green-200";
+    return "text-purple-600 bg-purple-50 border-purple-200";
+  };
+
+  // Lecturer view
   if (userProfile?.role === "lecturer") {
     return (
       <div className="p-6">
@@ -244,7 +280,6 @@ export default function Recommendations() {
           <h1 className="text-3xl font-bold text-gray-900">Class Recommendations</h1>
           <p className="text-gray-600 mt-1">Insights to help your students succeed</p>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white p-6 rounded-xl border border-gray-200">
             <div className="flex items-center gap-3 mb-4">
@@ -256,7 +291,6 @@ export default function Recommendations() {
               View Students <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
-
           <div className="bg-white p-6 rounded-xl border border-gray-200">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-green-100 rounded-lg"><FileText className="w-5 h-5 text-green-600" /></div>
@@ -267,17 +301,6 @@ export default function Recommendations() {
               Manage Resources <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
-        </div>
-
-        <div className="mt-6 bg-indigo-50 p-6 rounded-xl border border-indigo-200">
-          <div className="flex items-center gap-3 mb-3">
-            <Lightbulb className="w-6 h-6 text-indigo-600" />
-            <h2 className="font-semibold text-indigo-900">Lecturer Tip</h2>
-          </div>
-          <p className="text-indigo-800">
-            Use the Students page to monitor individual student progress. Create targeted assignments 
-            for students who need extra help in specific subjects.
-          </p>
         </div>
       </div>
     );
@@ -291,7 +314,6 @@ export default function Recommendations() {
           <h1 className="text-3xl font-bold text-gray-900">System Analytics</h1>
           <p className="text-gray-600 mt-1">Overview of platform usage and performance</p>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white p-6 rounded-xl border border-gray-200">
             <h2 className="font-semibold text-gray-900 mb-2">Coming Soon</h2>
@@ -302,7 +324,6 @@ export default function Recommendations() {
     );
   }
 
-  // Student view
   if (loading) {
     return (
       <div className="p-6">
@@ -340,48 +361,107 @@ export default function Recommendations() {
             <div className="p-2 bg-red-100 rounded-lg"><AlertCircle className="w-5 h-5 text-red-600" /></div>
             <div>
               <p className="text-2xl font-bold text-red-600">{performanceData.weakSubjects.length}</p>
-              <p className="text-sm text-gray-500">Subjects to Improve</p>
+              <p className="text-sm text-gray-500">Needs Improvement</p>
             </div>
           </div>
         </div>
         <div className="bg-white p-4 rounded-xl border border-gray-200">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg"><ThumbsUp className="w-5 h-5 text-green-600" /></div>
+            <div className="p-2 bg-yellow-100 rounded-lg"><ThumbsUp className="w-5 h-5 text-yellow-600" /></div>
+            <div>
+              <p className="text-2xl font-bold text-yellow-600">{performanceData.averageSubjects.length}</p>
+              <p className="text-sm text-gray-500">Average Subjects</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-100 rounded-lg"><CheckCircle className="w-5 h-5 text-green-600" /></div>
             <div>
               <p className="text-2xl font-bold text-green-600">{performanceData.strongSubjects.length}</p>
               <p className="text-sm text-gray-500">Strong Subjects</p>
             </div>
           </div>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-yellow-100 rounded-lg"><Clock className="w-5 h-5 text-yellow-600" /></div>
-            <div>
-              <p className="text-2xl font-bold text-yellow-600">{performanceData.pendingTasks}</p>
-              <p className="text-sm text-gray-500">Pending Tasks</p>
-            </div>
+      </div>
+
+      {/* Pending Tasks Card */}
+      <div className="bg-white p-4 rounded-xl border border-gray-200 mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-yellow-100 rounded-lg"><Clock className="w-5 h-5 text-yellow-600" /></div>
+          <div>
+            <p className="text-2xl font-bold text-yellow-600">{performanceData.pendingTasks}</p>
+            <p className="text-sm text-gray-500">Pending Tasks</p>
           </div>
         </div>
       </div>
 
-      {/* Weak Subjects Section */}
+      {/* Subjects Needing Attention */}
       {performanceData.weakSubjects.length > 0 && (
         <div className="mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
             <AlertCircle className="w-5 h-5 text-red-600" />
-            Subjects Needing Attention
+            Subjects Needing Attention (&lt;50%)
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {performanceData.weakSubjects.map((subject) => (
               <div key={subject.subject} className="bg-red-50 p-4 rounded-xl border border-red-200">
                 <div className="flex justify-between items-center">
                   <span className="font-medium text-red-800 capitalize">{subject.subject}</span>
-                  <span className="text-sm font-semibold text-red-700">{Math.round(subject.avg)}% average</span>
+                  <span className="text-sm font-semibold text-red-700">{Math.round(subject.avg)}%</span>
                 </div>
                 <div className="mt-2 h-2 bg-red-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-red-500 rounded-full" style={{ width: `${subject.avg}%` }}></div>
+                  <div className="h-full bg-red-500 rounded-full" style={{ width: `${Math.min(subject.avg, 100)}%` }}></div>
                 </div>
                 <p className="text-xs text-red-600 mt-2">{subject.count} graded assignment{subject.count !== 1 ? "s" : ""}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Average Subjects (50-69%) */}
+      {performanceData.averageSubjects.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <ThumbsUp className="w-5 h-5 text-yellow-600" />
+            Average Subjects (50-69%)
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {performanceData.averageSubjects.map((subject) => (
+              <div key={subject.subject} className="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium text-yellow-800 capitalize">{subject.subject}</span>
+                  <span className="text-sm font-semibold text-yellow-700">{Math.round(subject.avg)}%</span>
+                </div>
+                <div className="mt-2 h-2 bg-yellow-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${Math.min(subject.avg, 100)}%` }}></div>
+                </div>
+                <p className="text-xs text-yellow-600 mt-2">{subject.count} graded assignment{subject.count !== 1 ? "s" : ""}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Strong Subjects (80%+) */}
+      {performanceData.strongSubjects.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <Star className="w-5 h-5 text-green-600" />
+            Strong Subjects (80%+)
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {performanceData.strongSubjects.map((subject) => (
+              <div key={subject.subject} className="bg-green-50 p-4 rounded-xl border border-green-200">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium text-green-800 capitalize">{subject.subject}</span>
+                  <span className="text-sm font-semibold text-green-700">{Math.round(subject.avg)}%</span>
+                </div>
+                <div className="mt-2 h-2 bg-green-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-green-500 rounded-full" style={{ width: `${Math.min(subject.avg, 100)}%` }}></div>
+                </div>
+                <p className="text-xs text-green-600 mt-2">{subject.count} graded assignment{subject.count !== 1 ? "s" : ""}</p>
               </div>
             ))}
           </div>

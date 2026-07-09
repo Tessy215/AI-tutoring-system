@@ -19,7 +19,8 @@ import LandingPage from "./pages/LandingPage.jsx";
 import Settings from "./pages/Settings.jsx";
 import AIAssistance from "./pages/AIAssistance.jsx";
 import AdminAnalytics from "./pages/AdminAnalytics.jsx";
-
+import AdminUsers from "./pages/AdminUsers.jsx";
+import AdminMaterials from "./pages/AdminMaterials.jsx";
 import { useAuth } from "./Contexts/AuthContext.jsx";
 
 function ProtectedRoute({ children }) {
@@ -106,11 +107,21 @@ function App() {
           </RoleRoute>
         } />
         
+        <Route path="users" element={
+          <RoleRoute allowedRoles={["admin"]}>
+            <AdminUsers />
+          </RoleRoute>
+        } />
+
+        <Route path="materials" element={
+          <RoleRoute allowedRoles={["admin"]}>
+            <AdminMaterials />
+          </RoleRoute>
+        } />
+
         {/* Admin placeholder routes - Coming Soon */}
         <Route path="logs" element={<PlaceholderPage title="System Logs" />} />
         <Route path="content" element={<PlaceholderPage title="Manage Content" />} />
-        <Route path="materials" element={<PlaceholderPage title="Materials" />} />
-        <Route path="users" element={<PlaceholderPage title="Users Management" />} />
       </Route>
 
       {/* Redirect any unknown routes to landing page */}
