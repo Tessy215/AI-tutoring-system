@@ -1,4 +1,3 @@
-/* eslint-disable */
 import { useState, useEffect } from "react";
 import { useAuth } from "../Contexts/AuthContext.jsx";
 import { databases, storage } from "../lib/appwrite";
@@ -6,8 +5,10 @@ import { DATABASE_ID, COLLECTIONS, BUCKET_ID } from "../lib/config";
 import { Query } from "appwrite";
 import {
   FileText, Trash2, Eye, Download, Search, Filter,
-  X, Calendar, User, BookOpen, File, FileImage, FileVideo
+  X, Calendar, User, BookOpen, File, FileImage, FileVideo,
+  AlertCircle, CheckCircle
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const PROJECT_ID = "6a0c62610037d13e6c11";
 const APPWRITE_ENDPOINT = "https://fra.cloud.appwrite.io/v1";
@@ -17,7 +18,7 @@ function getFileUrl(fileId, mode = "view") {
 }
 
 export default function AdminMaterials() {
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const [resources, setResources] = useState([]);
   const [filteredResources, setFilteredResources] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +30,22 @@ export default function AdminMaterials() {
   const [selectedResource, setSelectedResource] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState("");
 
-  // Moved loadResources BEFORE useEffect
+  // Redirect if not admin
+  if (userProfile?.role !== "admin") {
+    return (
+      <div className="p-6">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+          <h2 className="text-xl font-semibold text-yellow-800 mb-2">Access Restricted</h2>
+          <p className="text-yellow-700">This page is only available for administrators.</p>
+        </div>
+      </div>
+    );
+  }
+
+  useEffect(() => {
+    loadResources();
+  }, []);
+
   const loadResources = async () => {
     setLoading(true);
     try {
@@ -47,7 +63,6 @@ export default function AdminMaterials() {
     }
   };
 
-  // Moved handleSearch BEFORE useEffect that uses it
   const handleSearch = () => {
     let filtered = [...resources];
     
@@ -70,34 +85,16 @@ export default function AdminMaterials() {
     setFilteredResources(filtered);
   };
 
-  // Redirect after hooks
   useEffect(() => {
-    if (userProfile?.role === "admin") {
-      loadResources();
-    }
-  }, [userProfile]);
-
-  useEffect(() => {
-    if (userProfile?.role === "admin") {
-      handleSearch();
-    }
+    handleSearch();
   }, [searchTerm, filterCourse, filterType, resources]);
-
-  if (userProfile?.role !== "admin") {
-    return (
-      <div className="p-6">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-          <h2 className="text-xl font-semibold text-yellow-800 mb-2">Access Restricted</h2>
-          <p className="text-yellow-700">This page is only available for administrators.</p>
-        </div>
-      </div>
-    );
-  }
 
   const deleteResource = async (resource) => {
     setDeletingId(resource.$id);
     try {
+      // Delete from storage
       await storage.deleteFile(BUCKET_ID, resource.fileId);
+      // Delete from database
       await databases.deleteDocument(DATABASE_ID, COLLECTIONS.RESOURCES, resource.$id);
       
       setResources(resources.filter(r => r.$id !== resource.$id));
@@ -116,7 +113,7 @@ export default function AdminMaterials() {
     window.open(getFileUrl(fileId, "view"), "_blank");
   };
 
-  const downloadResource = (fileId) => {
+  const downloadResource = (fileId, fileName) => {
     window.open(getFileUrl(fileId, "download"), "_blank");
   };
 
@@ -299,7 +296,7 @@ export default function AdminMaterials() {
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => downloadResource(resource.fileId)}
+                          onClick={() => downloadResource(resource.fileId, resource.fileName)}
                           className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                           title="Download"
                         >

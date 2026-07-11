@@ -3,11 +3,12 @@ import { useAuth } from "../../Contexts/AuthContext.jsx";
 import { databases } from "../../lib/appwrite";
 import { DATABASE_ID, COLLECTIONS } from "../../lib/config";
 import { Query } from "appwrite";
-import { CheckSquare, FileText, Award, Clock, ChevronRight } from "lucide-react";
+import { CheckSquare, FileText, Award, Clock, ChevronRight, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function StudentDashboard() {
   const { user, userProfile } = useAuth();
+  const [announcements, setAnnouncements] = useState([]);  // ← Fixed: array not object
   const [stats, setStats] = useState({
     tasks: { total: 0, completed: 0 },
     assignments: { total: 0, graded: 0, pendingGrading: 0, averageGrade: 0 },
@@ -42,9 +43,16 @@ export default function StudentDashboard() {
         ]
       );
       
+      // Load announcements - MOVED INSIDE THE FUNCTION
+      const announcementsRes = await databases.listDocuments(
+        DATABASE_ID,
+        COLLECTIONS.ANNOUNCEMENTS,
+        [Query.orderDesc("$createdAt"), Query.limit(3)]
+      );
+      setAnnouncements(announcementsRes.documents);
+      
       const gradedAssignments = assignmentsRes.documents.filter(a => a.grade !== null && a.grade !== undefined);
       
-      // Fix: Calculate average grade as percentage
       const avgGrade = gradedAssignments.length > 0 
         ? gradedAssignments.reduce((sum, a) => sum + ((a.grade / a.maxScore) * 100), 0) / gradedAssignments.length 
         : 0;
@@ -149,6 +157,35 @@ export default function StudentDashboard() {
         </div>
       </div>
 
+      {/* Latest Announcements */}
+      {announcements.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-indigo-600" />
+            Latest Announcements
+          </h2>
+          <div className="space-y-3">
+            {announcements.map((announcement) => (
+              <div key={announcement.$id} className="p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">{announcement.title}</p>
+                    <p className="text-sm text-gray-600 line-clamp-2">{announcement.content}</p>
+                  </div>
+                  <span className="text-xs text-gray-400 whitespace-nowrap ml-4">
+                    {new Date(announcement.$createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">By {announcement.createdByName || "Unknown"}</p>
+              </div>
+            ))}
+          </div>
+          <Link to="/dashboard/announcements" className="mt-3 text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1 inline-block">
+            View All Announcements <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+      )}
+
       {/* Recent Items */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-gray-200">
@@ -188,7 +225,6 @@ export default function StudentDashboard() {
               <div className="p-8 text-center text-gray-500">No assignments yet.</div>
             ) : (
               stats.recentAssignments.map((assignment) => {
-                // Calculate percentage correctly
                 const percentage = assignment.maxScore > 0 
                   ? Math.round((assignment.grade / assignment.maxScore) * 100) 
                   : 0;

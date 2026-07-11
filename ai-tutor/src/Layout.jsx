@@ -21,6 +21,7 @@ const lecturerNavigation = [
   {name: "Resources", path: "/dashboard/resources", icon: BookOpen},
   {name: "Assignments", path: "/dashboard/assignments", icon: CheckSquare},
   {name: "Students", path: "/dashboard/students", icon: User},
+  {name: "Announcements", path: "/dashboard/announcements", icon: Bot},
   {name: "Settings", path: "/dashboard/settings", icon: CheckSquare},
 ]
 

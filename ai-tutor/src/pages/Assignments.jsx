@@ -8,6 +8,7 @@ import { databases, storage, ID } from "../lib/appwrite";
 import { DATABASE_ID, COLLECTIONS, BUCKET_ID } from "../lib/config";
 import { useAuth } from "../Contexts/AuthContext.jsx";
 import { Query } from "appwrite";
+import { createLog } from "../lib/logService";
 
 export default function Assignments() {
   const { user, userProfile } = useAuth();
@@ -40,9 +41,6 @@ export default function Assignments() {
   const [submissionFile, setSubmissionFile] = useState(null);
   const [gradeData, setGradeData] = useState({ grade: "", feedback: "" });
 
-  useEffect(() => {
-    loadAssignments();
-  }, [user]);
 
   const loadAssignments = async () => {
     setLoading(true);
@@ -80,6 +78,9 @@ export default function Assignments() {
       setLoading(false);
     }
   };
+    useEffect(() => {
+    loadAssignments();
+  }, [user]);
 
   const handleCreateAssignment = async () => {
     setIsSaving(true);
@@ -271,6 +272,7 @@ export default function Assignments() {
     } finally {
       setIsSaving(false);
     }
+    await createLog(user.$id, user.name, "Graded assignment", assignmentId, "grading");
   };
 
   const handleUpdateGrade = async (assignmentId) => {

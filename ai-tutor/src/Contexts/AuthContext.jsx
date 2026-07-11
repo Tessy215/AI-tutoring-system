@@ -2,21 +2,17 @@ import { Query } from "appwrite";
 import { createContext, useContext, useState, useEffect } from "react";
 import { account, databases, ID } from "../lib/appwrite";
 import { DATABASE_ID, COLLECTIONS } from "../lib/config";
+import { createLog } from "../lib/logService";
 
 const AuthContext = createContext(null);
 
-
 export function AuthProvider({ children }) {
-
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
 
-  useEffect(() => {
-    checkUser();
-  }, []);
-
+  // Moved checkUser BEFORE useEffect
   const checkUser = async () => {
     try {
       const currentUser = await account.get();
@@ -32,10 +28,10 @@ export function AuthProvider({ children }) {
         setUserProfile(profile.documents[0]);
       }
 
-      console.log("Role:", profile.documents[0].role)
-      console.log(profile.documents[0])
+      console.log("Role:", profile.documents[0]?.role);
+      console.log(profile.documents[0]);
 
-    const onboardingStatus = localStorage.getItem("hasCompletedOnboarding");
+      const onboardingStatus = localStorage.getItem("hasCompletedOnboarding");
       setHasCompletedOnboarding(onboardingStatus === "true");
     } catch {
       setUser(null);
@@ -44,71 +40,90 @@ export function AuthProvider({ children }) {
     }
   };
 
- const login = async (email, password) => {
-  try {
-    // optional: check if already logged in
+  useEffect(() => {
+    checkUser();
+  }, []);
+
+  const login = async (email, password) => {
     try {
-      await account.get();
-      await account.deleteSession("current");
-    } catch (e) {
-      // no active session — ignore
+      try {
+        await account.get();
+        await account.deleteSession("current");
+      } catch (_e) {
+        // no active session — ignore
+      }
+
+      await account.createEmailPasswordSession(email, password);
+
+      const currentUser = await account.get();
+      setUser(currentUser);
+
+      const profile = await databases.listDocuments(
+        DATABASE_ID,
+        COLLECTIONS.USERS,
+        [Query.equal("userId", currentUser.$id)]
+      );
+
+      if (profile.documents.length > 0) {
+        setUserProfile(profile.documents[0]);
+      }
+
+      // Create login log
+      await createLog(
+        currentUser.$id,
+        currentUser.name || currentUser.email,
+        "Logged in",
+        `User logged in from IP: ${window.location.hostname}`,
+        "auth"
+      );
+
+      return currentUser;
+    } catch (error) {
+      console.error("LOGIN ERROR:", error);
+      throw error;
     }
-
-    await account.createEmailPasswordSession(email, password);
-
-    const currentUser = await account.get();
-    setUser(currentUser);
-
-    const profile = await databases.listDocuments(
-      DATABASE_ID,
-      COLLECTIONS.USERS,
-      [Query.equal("userId", currentUser.$id)]
-    );
-
-    if (profile.documents.length > 0) {
-      setUserProfile(profile.documents[0]);
-    }
-
-    return currentUser;
-
-  } catch (error) {
-    console.error("LOGIN ERROR:", error);
-    throw error;
-  }
-};
+  };
 
   const register = async (name, email, password) => {
-  try {
-    console.log("Creating account...");
+    try {
+      console.log("Creating account...");
 
-    await account.create(
-      ID.unique(),
-      email,
-      password,
-      name
-    );
+      await account.create(ID.unique(), email, password, name);
 
-    console.log("Account created");
+      console.log("Account created");
 
-    await login(email, password);
+      await login(email, password);
 
-    const newUser = await account.get();
-    setUser(newUser);
-    setHasCompletedOnboarding(false);
+      const newUser = await account.get();
+      setUser(newUser);
+      setHasCompletedOnboarding(false);
 
-    return newUser;
-  } catch (error) {
-    console.error("REGISTER ERROR:", error);
-    throw error;
-  }
-};
+      return newUser;
+    } catch (error) {
+      console.error("REGISTER ERROR:", error);
+      throw error;
+    }
+  };
 
   const logout = async () => {
-    await account.deleteSession("current");
-    setUser(null);
-    setUserProfile(null);
-    setHasCompletedOnboarding(false);
-    localStorage.removeItem("hasCompletedOnboarding");
+    try {
+      if (user) {
+        await createLog(
+          user.$id,
+          user.name || user.email,
+          "Logged out",
+          "User logged out",
+          "auth"
+        );
+      }
+      await account.deleteSession("current");
+      setUser(null);
+      setUserProfile(null);
+      setHasCompletedOnboarding(false);
+      localStorage.removeItem("hasCompletedOnboarding");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
   const updateProfile = async (update) => {
@@ -125,7 +140,7 @@ export function AuthProvider({ children }) {
   };
 
   const completeOnboarding = async (field, courses, goals, role = "student") => {
-    try{
+    try {
       await databases.createDocument(
         DATABASE_ID,
         COLLECTIONS.USERS,
@@ -141,22 +156,20 @@ export function AuthProvider({ children }) {
           role,
         }
       );
-       const profile = await databases.listDocuments(DATABASE_ID, COLLECTIONS.USERS, [
-         Query.equal("userId", user.$id),
-       ])
+      const profile = await databases.listDocuments(DATABASE_ID, COLLECTIONS.USERS, [
+        Query.equal("userId", user.$id),
+      ]);
 
-       if (profile.documents.length > 0) {
-         setUserProfile(profile.documents[0])
-       }
-      localStorage.setItem("onboarding_data", JSON.stringify({ field, courses, goals}))
+      if (profile.documents.length > 0) {
+        setUserProfile(profile.documents[0]);
+      }
+      localStorage.setItem("onboarding_data", JSON.stringify({ field, courses, goals }));
       localStorage.setItem("hasCompletedOnboarding", "true");
       setHasCompletedOnboarding(true);
     } catch (error) {
       console.error("Onboarding error:", error);
     }
   };
-
- 
 
   const getOnboardingData = () => {
     const data = localStorage.getItem("onboarding_data");

@@ -8,4 +8,6 @@ export const COLLECTIONS = {
   PROGRESS: "progress",
   RESOURCES: "resourses",
   NOTIFICATIONS: "notifications",
+  LOGS: "logs",
+  ANNOUCEMENTS: "announcements"
 };

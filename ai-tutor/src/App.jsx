@@ -21,6 +21,8 @@ import AIAssistance from "./pages/AIAssistance.jsx";
 import AdminAnalytics from "./pages/AdminAnalytics.jsx";
 import AdminUsers from "./pages/AdminUsers.jsx";
 import AdminMaterials from "./pages/AdminMaterials.jsx";
+import SystemLogs from "./pages/SystemLogs.jsx";
+import Announcement from "./pages/Announcement.jsx";  // ← Make sure filename is correct
 import { useAuth } from "./Contexts/AuthContext.jsx";
 
 function ProtectedRoute({ children }) {
@@ -49,7 +51,6 @@ function RoleRoute({ children, allowedRoles }) {
   return children;
 }
 
-// Placeholder component for pages not built yet
 function PlaceholderPage({ title }) {
   return (
     <div className="p-6">
@@ -96,11 +97,13 @@ function App() {
         <Route path="profile" element={<Profile />} />
         <Route path="settings" element={<Settings />} />
         <Route path="ai-assistant" element={<AIAssistance />} />
+        
         <Route path="analytics" element={
           <RoleRoute allowedRoles={["admin"]}>
             <AdminAnalytics />
           </RoleRoute>
         } />
+        
         <Route path="students" element={
           <RoleRoute allowedRoles={["lecturer", "admin"]}>
             <StudentsPage />
@@ -118,11 +121,23 @@ function App() {
             <AdminMaterials />
           </RoleRoute>
         } />
+        
+        <Route path="logs" element={
+          <RoleRoute allowedRoles={["admin"]}>
+            <SystemLogs />
+          </RoleRoute>
+        } />
 
-        {/* Admin placeholder routes - Coming Soon */}
-        <Route path="logs" element={<PlaceholderPage title="System Logs" />} />
-        <Route path="content" element={<PlaceholderPage title="Manage Content" />} />
+        {/* ✅ Announcement INSIDE dashboard */}
+        <Route path="announcements" element={
+          <RoleRoute allowedRoles={["lecturer", "admin"]}>
+            <Announcement />
+          </RoleRoute>
+        } />
       </Route>
+
+      {/* Admin placeholder routes - Coming Soon */}
+      <Route path="content" element={<PlaceholderPage title="Manage Content" />} />
 
       {/* Redirect any unknown routes to landing page */}
       <Route path="*" element={<Navigate to="/" replace />} />
