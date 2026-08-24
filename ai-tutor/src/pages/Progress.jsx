@@ -13,7 +13,7 @@ import {
   CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   PieChart, Pie, Cell
 } from "recharts";
-import { Skeleton } from "../components/skeleton.jsx";
+import { Skeleton } from "../components/Skeleton.jsx";
 
 export default function Progress() {
   const { user, userProfile } = useAuth();

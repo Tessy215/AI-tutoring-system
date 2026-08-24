@@ -9,7 +9,7 @@ import {
   Clock, BarChart3, Star, ThumbsUp, Sparkles
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Skeleton } from "../components/skeleton.jsx";
+import { Skeleton } from "../components/Skeleton.jsx";
 
 export default function Recommendations() {
   const { user, userProfile } = useAuth();

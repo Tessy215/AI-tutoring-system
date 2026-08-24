@@ -11,7 +11,7 @@ import {
   Award, Clock, Activity, FileText, CheckSquare
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Skeleton } from "../components/skeleton.jsx";
+import { Skeleton } from "../components/Skeleton.jsx";
 import { TableSkeleton } from "../components/LoadingSkeleton.jsx";
 
 export default function AdminUsers() {

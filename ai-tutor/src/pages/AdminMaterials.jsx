@@ -8,7 +8,7 @@ import {
   FileText, Trash2, Eye, Download, Search, Filter,
   X, Calendar, User, BookOpen, File, FileImage, FileVideo
 } from "lucide-react";
-import { Skeleton } from "../components/skeleton.jsx";
+import { Skeleton } from "../components/Skeleton.jsx";
 import { TableSkeleton } from "../components/LoadingSkeleton.jsx";
 
 const PROJECT_ID = "6a0c62610037d13e6c11";

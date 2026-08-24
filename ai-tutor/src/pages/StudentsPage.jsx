@@ -9,7 +9,7 @@ import {
   Mail, GraduationCap, Target, ChevronRight
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Skeleton } from "../components/skeleton.jsx";
+import { Skeleton } from "../components/Skeleton.jsx";
 import { TableSkeleton } from "../components/LoadingSkeleton.jsx";
 
 export default function StudentsPage() {
