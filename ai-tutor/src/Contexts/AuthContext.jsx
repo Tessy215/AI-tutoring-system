@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect } from "react";
 import { account, databases, ID } from "../lib/appwrite";
 import { DATABASE_ID, COLLECTIONS } from "../lib/config";
 import { createLog } from "../lib/logService";
+import { checkDueAssignments } from "../lib/notifications";
 
 const AuthContext = createContext(null);
 
@@ -66,6 +67,9 @@ export function AuthProvider({ children }) {
 
       if (profile.documents.length > 0) {
         setUserProfile(profile.documents[0]);
+
+        //check for due assignments and notify the user
+        await checkDueAssignments(currentUser.$id);
       }
 
       // Create login log

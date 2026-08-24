@@ -17,7 +17,6 @@ export const createNotification = async (userId, title, message, type, link = nu
         read: false,
         link,
         relatedId,
-        createdAt: new Date().toISOString(),
       }
     );
     return notification;
@@ -55,13 +54,13 @@ export const getUnreadCount = async (userId) => {
       [
         Query.equal("userId", userId),
         Query.equal("read", false),
-        Query.limit(1) 
+        Query.limit(1)
       ]
     );
     return response.total;
   } catch (error) {
     console.error("Error getting unread count:", error);
-    return 1;
+    return 0;
   }
 };
 
@@ -108,15 +107,84 @@ export const deleteNotification = async (notificationId) => {
   }
 };
 
-// Auto-generate notifications based on events
-export const checkAndCreateNotifications = async (user, userProfile) => {
-  const userId = user.$id;
+// Notify all students about a new announcement
+export const notifyStudentsAboutAnnouncement = async (title, content, createdByName, announcementId) => {
+  try {
+    const studentsRes = await databases.listDocuments(
+      DATABASE_ID,
+      COLLECTIONS.USERS,
+      [Query.equal("role", "student")]
+    );
+    
+    let successCount = 0;
+    for (const student of studentsRes.documents) {
+      const result = await createNotification(
+        student.userId,
+        "📢 New Announcement",
+        `${createdByName} posted: ${title}`,
+        "announcement",
+        "/dashboard",
+        announcementId
+      );
+      if (result) successCount++;
+    }
+    return successCount;
+  } catch (error) {
+    console.error("Error notifying students about announcement:", error);
+    return 0;
+  }
+};
+
+// Notify all students about a new assignment
+export const notifyStudentsAboutAssignment = async (title, subject, assignmentId) => {
+  try {
+    const studentsRes = await databases.listDocuments(
+      DATABASE_ID,
+      COLLECTIONS.USERS,
+      [Query.equal("role", "student")]
+    );
+    
+    let successCount = 0;
+    for (const student of studentsRes.documents) {
+      const result = await createNotification(
+        student.userId,
+        "📝 New Assignment",
+        `New assignment: ${title} (${subject})`,
+        "assignment_due",
+        "/dashboard/assignments",
+        assignmentId
+      );
+      if (result) successCount++;
+    }
+    return successCount;
+  } catch (error) {
+    console.error("Error notifying students about assignment:", error);
+    return 0;
+  }
+};
+
+// Notify student about graded assignment
+export const notifyStudentAboutGrade = async (studentId, assignmentTitle, grade, maxScore) => {
+  try {
+    await createNotification(
+      studentId,
+      "🎯 Assignment Graded",
+      `Your assignment "${assignmentTitle}" has been graded: ${grade}/${maxScore}`,
+      "grade_received",
+      "/dashboard/assignments"
+    );
+    return true;
+  } catch (error) {
+    console.error("Error notifying student about grade:", error);
+    return false;
+  }
+};
+
+// Check for assignments due in 2 days
+export const checkDueAssignments = async (userId) => {
   const today = new Date();
-  const twoDaysFromNow = new Date(today);
-  twoDaysFromNow.setDate(today.getDate() + 2);
   
   try {
-    // Check for assignments due in 2 days
     const assignmentsRes = await databases.listDocuments(
       DATABASE_ID,
       COLLECTIONS.ASSIGNMENTS,
@@ -134,29 +202,30 @@ export const checkAndCreateNotifications = async (user, userProfile) => {
       const dueDate = new Date(assignment.dueDate);
       const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
       
-      // Check if due in 2 days and not already notified
-      const existingNotif = await databases.listDocuments(
-        DATABASE_ID,
-        COLLECTIONS.NOTIFICATIONS,
-        [
-          Query.equal("userId", userId),
-          Query.equal("relatedId", assignment.$id),
-          Query.equal("type", "assignment_due")
-        ]
-      );
-      
-      if (daysUntilDue === 2 && existingNotif.total === 0) {
-        await createNotification(
-          userId,
-          "Assignment Due Soon",
-          `${assignment.title} is due in 2 days`,
-          "assignment_due",
-          "/dashboard/assignments",
-          assignment.$id
+      if (daysUntilDue === 2) {
+        const existingNotif = await databases.listDocuments(
+          DATABASE_ID,
+          COLLECTIONS.NOTIFICATIONS,
+          [
+            Query.equal("userId", userId),
+            Query.equal("relatedId", assignment.$id),
+            Query.equal("type", "assignment_due")
+          ]
         );
+        
+        if (existingNotif.total === 0) {
+          await createNotification(
+            userId,
+            "⏰ Assignment Due Soon",
+            `${assignment.title} is due in 2 days`,
+            "assignment_due",
+            "/dashboard/assignments",
+            assignment.$id
+          );
+        }
       }
     }
   } catch (error) {
-    console.error("Error checking notifications:", error);
+    console.error("Error checking due assignments:", error);
   }
 };

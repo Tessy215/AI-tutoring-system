@@ -15,7 +15,6 @@ export const createLog = async (userId, userName, action, details = null, type =
         action,
         details,
         type,
-        createdAt: new Date().toISOString(),
       }
     );
     return log;

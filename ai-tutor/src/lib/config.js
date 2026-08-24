@@ -9,5 +9,5 @@ export const COLLECTIONS = {
   RESOURCES: "resourses",
   NOTIFICATIONS: "notifications",
   LOGS: "logs",
-  ANNOUCEMENTS: "announcements"
+  ANNOUNCEMENTS: "announcement"
 };

@@ -13,6 +13,7 @@ import {
   CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   PieChart, Pie, Cell
 } from "recharts";
+import { Skeleton } from "../components/skeleton.jsx";
 
 export default function Progress() {
   const { user, userProfile } = useAuth();
@@ -262,20 +263,44 @@ const loadProgressData = async () => {
   const subjectAverages = getSubjectAverages();
   const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {[1,2,3,4].map(i => <div key={i} className="h-24 bg-gray-200 rounded"></div>)}
-          </div>
-          <div className="h-64 bg-gray-200 rounded"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
-        </div>
-      </div>
-    );
-  }
+ if (loading) {
+   return (
+     <div className="p-6">
+       <div className="flex justify-between items-center mb-6">
+         <div>
+           <Skeleton className="h-8 w-48 mb-2" />
+           <Skeleton className="h-4 w-64" />
+         </div>
+         <Skeleton className="h-10 w-40 rounded-lg" />
+       </div>
+       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+         {[1, 2, 3, 4].map(i => (
+           <div
+             key={i}
+             className="bg-white p-4 rounded-xl border border-gray-200"
+           >
+             <Skeleton className="h-4 w-1/2 mb-2" />
+             <Skeleton className="h-8 w-1/3" />
+           </div>
+         ))}
+       </div>
+       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+         <div className="bg-white p-4 rounded-xl border border-gray-200">
+           <Skeleton className="h-6 w-1/3 mb-4" />
+           <div className="h-64">
+             <Skeleton className="h-full w-full" />
+           </div>
+         </div>
+         <div className="bg-white p-4 rounded-xl border border-gray-200">
+           <Skeleton className="h-6 w-1/3 mb-4" />
+           <div className="h-64">
+             <Skeleton className="h-full w-full" />
+           </div>
+         </div>
+       </div>
+     </div>
+   )
+ }
 
   return (
     <div className="p-6">

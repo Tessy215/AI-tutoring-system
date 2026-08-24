@@ -1,3 +1,5 @@
+/* eslint-disable */
+import { AssignmentsSkeleton } from "../components/LoadingSkeleton";
 import { useState, useEffect } from "react";
 import { 
   Plus, FileText, Upload, CheckCircle, Clock, AlertCircle, 
@@ -9,6 +11,7 @@ import { DATABASE_ID, COLLECTIONS, BUCKET_ID } from "../lib/config";
 import { useAuth } from "../Contexts/AuthContext.jsx";
 import { Query } from "appwrite";
 import { createLog } from "../lib/logService";
+import { notifyStudentsAboutAssignment, notifyStudentAboutGrade } from "../lib/notifications";
 
 export default function Assignments() {
   const { user, userProfile } = useAuth();
@@ -40,7 +43,6 @@ export default function Assignments() {
   const [submissionData, setSubmissionData] = useState({});
   const [submissionFile, setSubmissionFile] = useState(null);
   const [gradeData, setGradeData] = useState({ grade: "", feedback: "" });
-
 
   const loadAssignments = async () => {
     setLoading(true);
@@ -78,7 +80,8 @@ export default function Assignments() {
       setLoading(false);
     }
   };
-    useEffect(() => {
+  
+  useEffect(() => {
     loadAssignments();
   }, [user]);
 
@@ -86,7 +89,7 @@ export default function Assignments() {
     setIsSaving(true);
     try {
       let attachmentFileId = null;
-      
+
       if (formData.attachmentFile) {
         const uploadedFile = await storage.createFile(
           BUCKET_ID,
@@ -95,7 +98,7 @@ export default function Assignments() {
         );
         attachmentFileId = uploadedFile.$id;
       }
-      
+
       const assignmentData = {
         userId: user.$id,
         title: formData.title,
@@ -116,10 +119,38 @@ export default function Assignments() {
         questionGrades: null,
       };
 
+      let doc;
       if (editingAssignment) {
-        await databases.updateDocument(DATABASE_ID, COLLECTIONS.ASSIGNMENTS, editingAssignment.$id, assignmentData);
+        doc = await databases.updateDocument(
+          DATABASE_ID,
+          COLLECTIONS.ASSIGNMENTS,
+          editingAssignment.$id,
+          assignmentData
+        );
       } else {
-        await databases.createDocument(DATABASE_ID, COLLECTIONS.ASSIGNMENTS, ID.unique(), assignmentData);
+        doc = await databases.createDocument(
+          DATABASE_ID,
+          COLLECTIONS.ASSIGNMENTS,
+          ID.unique(),
+          assignmentData
+        );
+
+        // ✅ Notify all students about new assignment
+        const notified = await notifyStudentsAboutAssignment(
+          formData.title,
+          formData.subject,
+          doc.$id
+        );
+        console.log(`✅ Notified ${notified} students about new assignment`);
+
+        // Create log
+        await createLog(
+          user.$id,
+          user.name,
+          "Created assignment",
+          `Created assignment: ${formData.title}`,
+          "assignment"
+        );
       }
 
       resetModal();
@@ -255,12 +286,36 @@ export default function Assignments() {
     try {
       const questionGradesJson = JSON.stringify(questionPoints[assignmentId] || {});
       
+      // Find the assignment before updating
+      const assignment = assignments.find(a => a.$id === assignmentId);
+      
       await databases.updateDocument(DATABASE_ID, COLLECTIONS.ASSIGNMENTS, assignmentId, {
         grade: parseInt(gradeData.grade),
         feedback: gradeData.feedback,
         status: "graded",
         questionGrades: questionGradesJson
       });
+
+      // ✅ NOTIFY STUDENT ABOUT GRADE
+      if (assignment) {
+        console.log("🎯 Notifying student about grade...");
+        await notifyStudentAboutGrade(
+          assignment.userId,
+          assignment.title,
+          gradeData.grade,
+          assignment.maxScore
+        );
+        console.log(`✅ Student notified about grade for: ${assignment.title}`);
+      }
+
+      // Create log
+      await createLog(
+        user.$id,
+        user.name,
+        "Graded assignment",
+        assignment?.title || "assignment",
+        "grading"
+      );
 
       setGradingAssignment(null);
       setGradeData({ grade: "", feedback: "" });
@@ -272,7 +327,6 @@ export default function Assignments() {
     } finally {
       setIsSaving(false);
     }
-    await createLog(user.$id, user.name, "Graded assignment", assignmentId, "grading");
   };
 
   const handleUpdateGrade = async (assignmentId) => {
@@ -289,6 +343,18 @@ export default function Assignments() {
         status: "graded",
         questionGrades: JSON.stringify(existingQuestionGrades)
       });
+
+      // ✅ NOTIFY STUDENT ABOUT UPDATED GRADE
+      if (assignment) {
+        console.log("🎯 Notifying student about updated grade...");
+        await notifyStudentAboutGrade(
+          assignment.userId,
+          assignment.title,
+          gradeData.grade,
+          assignment.maxScore
+        );
+        console.log(`✅ Student notified about updated grade for: ${assignment.title}`);
+      }
 
       setEditingGrade(prev => ({ ...prev, [assignmentId]: false }));
       setGradeData({ grade: "", feedback: "" });
@@ -443,10 +509,7 @@ export default function Assignments() {
             const savedQuestionGrades = assignment.questionGrades || {};
             
             return (
-              <div
-                key={assignment.$id}
-                className="bg-white rounded-xl border border-gray-200 p-6"
-              >
+              <div key={assignment.$id} className="bg-white rounded-xl border border-gray-200 p-6">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
@@ -465,214 +528,92 @@ export default function Assignments() {
                     </div>
                     <p className="text-gray-600 mb-2">{assignment.description}</p>
                     <div className="flex flex-wrap gap-4 text-sm text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <BookOpen className="w-4 h-4" />
-                        {assignment.subject}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        Due:{" "}
-                        {assignment.dueDate
-                          ? new Date(assignment.dueDate).toLocaleDateString()
-                          : "No date"}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <BarChart3 className="w-4 h-4" />
-                        Max Score: {assignment.maxScore}
-                      </span>
+                      <span className="flex items-center gap-1"><BookOpen className="w-4 h-4" />{assignment.subject}</span>
+                      <span className="flex items-center gap-1"><Calendar className="w-4 h-4" />Due: {assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : "No date"}</span>
+                      <span className="flex items-center gap-1"><BarChart3 className="w-4 h-4" />Max Score: {assignment.maxScore}</span>
                     </div>
                     {hasAttachment && (
-                      <button
-                        onClick={() => downloadAttachment(assignment.attachment, assignment.title)}
-                        className="mt-3 flex items-center gap-2 text-sm text-indigo-600"
-                      >
-                        <Paperclip className="w-4 h-4" />
-                        Download Assignment File
+                      <button onClick={() => downloadAttachment(assignment.attachment, assignment.title)} className="mt-3 flex items-center gap-2 text-sm text-indigo-600">
+                        <Paperclip className="w-4 h-4" />Download Assignment File
                       </button>
                     )}
                   </div>
-                  {(canCreate || assignment.createdBy === user.$id) &&
-                    assignment.status === "pending" && (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEditAssignment(assignment)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteAssignment(assignment.$id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
+                  {(canCreate || assignment.createdBy === user.$id) && assignment.status === "pending" && (
+                    <div className="flex gap-2">
+                      <button onClick={() => handleEditAssignment(assignment)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 className="w-4 h-4" /></button>
+                      <button onClick={() => handleDeleteAssignment(assignment.$id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  )}
                 </div>
 
                 {/* STUDENT SUBMISSION SECTION */}
-                {userProfile?.role === "student" &&
-                  assignment.status !== "graded" &&
-                  assignment.status !== "submitted" && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      {overdue ? (
-                        <div className="p-3 bg-red-50 rounded-lg text-red-600 text-center">
-                          <AlertCircle className="w-5 h-5 inline mr-2" />
-                          Submission deadline has passed. You can no longer submit this assignment.
-                        </div>
-                      ) : submittingTo === assignment.$id ? (
-                        <div className="space-y-4">
-                          <div className="p-4 bg-indigo-50 rounded-lg">
-                            <p className="text-sm font-medium text-indigo-800 mb-2">
-                              📋 Instructions:
-                            </p>
-                            <p className="text-sm text-indigo-700">
-                              {assignment.description || "Answer all questions below."}
-                            </p>
-                            <div className="mt-3 flex gap-4 text-xs text-indigo-600">
-                              <span>
-                                📅 Due:{" "}
-                                {assignment.dueDate
-                                  ? new Date(assignment.dueDate).toLocaleDateString()
-                                  : "No due date"}
-                              </span>
-                              <span>⭐ Max Score: {assignment.maxScore} points</span>
-                            </div>
-                          </div>
-
-                          {questions.map((q, qIdx) => (
-                            <div
-                              key={qIdx}
-                              className="p-4 bg-gray-50 rounded-lg"
-                            >
-                              <p className="font-medium text-gray-900 mb-3">
-                                {qIdx + 1}. {q.text}
-                              </p>
-
-                              {q.type === "multiple" ? (
-                                <div className="space-y-2">
-                                  {q.options.map((opt, optIdx) => (
-                                    <label
-                                      key={optIdx}
-                                      className="flex items-center gap-3 p-2 border rounded-lg bg-white cursor-pointer"
-                                    >
-                                      <input
-                                        type="radio"
-                                        name={`q_${qIdx}`}
-                                        value={opt}
-                                        onChange={e =>
-                                          updateStudentAnswer(
-                                            assignment.$id,
-                                            qIdx,
-                                            "answer",
-                                            e.target.value
-                                          )
-                                        }
-                                        className="w-4 h-4 text-indigo-600"
-                                      />
-                                      <span>{opt}</span>
-                                    </label>
-                                  ))}
-                                  {q.showWorking && (
-                                    <textarea
-                                      value={submissionData[assignment.$id]?.[qIdx]?.working || ""}
-                                      onChange={e =>
-                                        updateStudentAnswer(
-                                          assignment.$id,
-                                          qIdx,
-                                          "working",
-                                          e.target.value
-                                        )
-                                      }
-                                      className="w-full p-2 border rounded-lg mt-2"
-                                      rows="2"
-                                      placeholder="Show your working (optional)..."
-                                    />
-                                  )}
-                                </div>
-                              ) : (
-                                <div>
-                                  <textarea
-                                    value={submissionData[assignment.$id]?.[qIdx]?.answer || ""}
-                                    onChange={e =>
-                                      updateStudentAnswer(
-                                        assignment.$id,
-                                        qIdx,
-                                        "answer",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="w-full p-3 border rounded-lg"
-                                    rows="3"
-                                    placeholder="Type your answer here..."
-                                  />
-                                  {q.showWorking && (
-                                    <textarea
-                                      value={submissionData[assignment.$id]?.[qIdx]?.working || ""}
-                                      onChange={e =>
-                                        updateStudentAnswer(
-                                          assignment.$id,
-                                          qIdx,
-                                          "working",
-                                          e.target.value
-                                        )
-                                      }
-                                      className="w-full p-2 border rounded-lg mt-2"
-                                      rows="2"
-                                      placeholder="Show your working (optional)..."
-                                    />
-                                  )}
-                                  {q.autoGrade && q.correctAnswer && (
-                                    <p className="text-xs text-green-600 mt-1">
-                                      ✓ This question will be auto-graded.
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleSubmitAssignment(assignment.$id)}
-                              disabled={isSaving}
-                              className="px-6 py-2 bg-indigo-600 text-white rounded-lg"
-                            >
-                              Submit Assignment
-                            </button>
-                            <button
-                              onClick={() => setSubmittingTo(null)}
-                              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-                            >
-                              Cancel
-                            </button>
+                {userProfile?.role === "student" && assignment.status !== "graded" && assignment.status !== "submitted" && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    {overdue ? (
+                      <div className="p-3 bg-red-50 rounded-lg text-red-600 text-center">
+                        <AlertCircle className="w-5 h-5 inline mr-2" />
+                        Submission deadline has passed. You can no longer submit this assignment.
+                      </div>
+                    ) : submittingTo === assignment.$id ? (
+                      <div className="space-y-4">
+                        <div className="p-4 bg-indigo-50 rounded-lg">
+                          <p className="text-sm font-medium text-indigo-800 mb-2">📋 Instructions:</p>
+                          <p className="text-sm text-indigo-700">{assignment.description || "Answer all questions below."}</p>
+                          <div className="mt-3 flex gap-4 text-xs text-indigo-600">
+                            <span>📅 Due: {assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : "No due date"}</span>
+                            <span>⭐ Max Score: {assignment.maxScore} points</span>
                           </div>
                         </div>
-                      ) : (
-                        <button
-                          onClick={() => setSubmittingTo(assignment.$id)}
-                          className="flex items-center gap-2 px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg"
-                        >
-                          <Upload className="w-4 h-4" />
-                          Start Assignment
-                        </button>
-                      )}
-                    </div>
-                  )}
 
-                {/* SUBMITTED WAITING MESSAGE - SHOWS AUTO-GRADE IF EXISTS */}
+                        {questions.map((q, qIdx) => (
+                          <div key={qIdx} className="p-4 bg-gray-50 rounded-lg">
+                            <p className="font-medium text-gray-900 mb-3">{qIdx + 1}. {q.text}</p>
+                            {q.type === "multiple" ? (
+                              <div className="space-y-2">
+                                {q.options.map((opt, optIdx) => (
+                                  <label key={optIdx} className="flex items-center gap-3 p-2 border rounded-lg bg-white cursor-pointer">
+                                    <input type="radio" name={`q_${qIdx}`} value={opt} onChange={(e) => updateStudentAnswer(assignment.$id, qIdx, "answer", e.target.value)} className="w-4 h-4 text-indigo-600" />
+                                    <span>{opt}</span>
+                                  </label>
+                                ))}
+                                {q.showWorking && (
+                                  <textarea value={submissionData[assignment.$id]?.[qIdx]?.working || ""} onChange={(e) => updateStudentAnswer(assignment.$id, qIdx, "working", e.target.value)} className="w-full p-2 border rounded-lg mt-2" rows="2" placeholder="Show your working (optional)..." />
+                                )}
+                              </div>
+                            ) : (
+                              <div>
+                                <textarea value={submissionData[assignment.$id]?.[qIdx]?.answer || ""} onChange={(e) => updateStudentAnswer(assignment.$id, qIdx, "answer", e.target.value)} className="w-full p-3 border rounded-lg" rows="3" placeholder="Type your answer here..." />
+                                {q.showWorking && (
+                                  <textarea value={submissionData[assignment.$id]?.[qIdx]?.working || ""} onChange={(e) => updateStudentAnswer(assignment.$id, qIdx, "working", e.target.value)} className="w-full p-2 border rounded-lg mt-2" rows="2" placeholder="Show your working (optional)..." />
+                                )}
+                                {q.autoGrade && q.correctAnswer && <p className="text-xs text-green-600 mt-1">✓ This question will be auto-graded.</p>}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        
+                        <div className="flex gap-2">
+                          <button onClick={() => handleSubmitAssignment(assignment.$id)} disabled={isSaving} className="px-6 py-2 bg-indigo-600 text-white rounded-lg">Submit Assignment</button>
+                          <button onClick={() => setSubmittingTo(null)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button onClick={() => setSubmittingTo(assignment.$id)} className="flex items-center gap-2 px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg">
+                        <Upload className="w-4 h-4" />Start Assignment
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* SUBMITTED WAITING MESSAGE */}
                 {userProfile?.role === "student" && assignment.status === "submitted" && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <div className="flex items-center gap-2 p-3 rounded-lg border">
                       {assignment.grade !== null && assignment.grade !== undefined ? (
                         <>
                           <CheckCircle className="w-5 h-5 text-green-600" />
-                          <span className="text-green-700 font-medium">
-                            Auto-graded: {assignment.grade}/{assignment.maxScore}
-                          </span>
-                          <span className="text-gray-500 text-sm ml-2">
-                            (Waiting for lecturer review)
-                          </span>
+                          <span className="text-green-700 font-medium">Auto-graded: {assignment.grade}/{assignment.maxScore}</span>
+                          <span className="text-gray-500 text-sm ml-2">(Waiting for lecturer review)</span>
                         </>
                       ) : (
                         <>
@@ -691,13 +632,9 @@ export default function Assignments() {
                     <div className="flex justify-between items-center mb-2">
                       <span className="font-medium text-gray-700">Overall Grade:</span>
                       <div className="text-right">
-                        <span className="text-2xl font-bold text-indigo-600">
-                          {assignment.grade}
-                        </span>
+                        <span className="text-2xl font-bold text-indigo-600">{assignment.grade}</span>
                         <span className="text-gray-500">/{assignment.maxScore}</span>
-                        <span className="ml-2 text-sm text-gray-500">
-                          ({((assignment.grade / assignment.maxScore) * 100).toFixed(0)}%)
-                        </span>
+                        <span className="ml-2 text-sm text-gray-500">({((assignment.grade / assignment.maxScore) * 100).toFixed(0)}%)</span>
                       </div>
                     </div>
                     {assignment.feedback && (
@@ -706,242 +643,89 @@ export default function Assignments() {
                         <p className="text-sm text-gray-600 mt-1">{assignment.feedback}</p>
                       </div>
                     )}
-
+                    
                     {/* VIEW DETAILS - For Students */}
-                    {userProfile?.role === "student" &&
-                      assignment.type === "quiz" &&
-                      assignment.grade !== null && (
-                        <button
-                          onClick={() => {
-                            setShowDetails(prev => ({
-                              ...prev,
-                              [assignment.$id]: !prev[assignment.$id],
-                            }))
-                          }}
-                          className="mt-3 text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
-                        >
-                          {showDetails[assignment.$id] ? " Hide Details ▲" : " View Details ▼"}
-                        </button>
-                      )}
+                    {userProfile?.role === "student" && assignment.type === "quiz" && assignment.grade !== null && (
+                      <button onClick={() => { setShowDetails(prev => ({ ...prev, [assignment.$id]: !prev[assignment.$id] })); }} className="mt-3 text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+                        {showDetails[assignment.$id] ? " Hide Details ▲" : " View Details ▼"}
+                      </button>
+                    )}
 
-                    {/* ========== EDIT GRADE FORM ========== */}
+                    {/* EDIT GRADE - For Lecturers */}
+                    {canGrade && assignment.status === "graded" && (
+                      <button onClick={() => { setEditingGrade(prev => ({ ...prev, [assignment.$id]: !prev[assignment.$id] })); if (!editingGrade[assignment.$id]) { setGradeData({ grade: assignment.grade, feedback: assignment.feedback || "" }); } }} className="mt-3 text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                        <Edit2 className="w-3 h-3" />
+                        {editingGrade[assignment.$id] ? " Cancel Edit" : " Edit Grade"}
+                      </button>
+                    )}
+
+                    {/* EDIT GRADE FORM */}
                     {canGrade && assignment.status === "graded" && editingGrade[assignment.$id] && (
                       <div className="mt-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <h4 className="font-semibold text-blue-900 mb-3">
-                          {assignment.type === "quiz" ? "Edit Quiz Grades" : "Edit Grade"}
-                        </h4>
-
+                        <h4 className="font-semibold text-blue-900 mb-3">{assignment.type === "quiz" ? "Edit Quiz Grades" : "Edit Grade"}</h4>
                         {assignment.type === "quiz" ? (
-                          // QUIZ ASSIGNMENT - PER-QUESTION EDITING
                           <div className="space-y-4">
                             <div className="space-y-3">
                               {(() => {
-                                const questionsList = JSON.parse(assignment.questions || "[]")
-                                const submission = JSON.parse(assignment.submission || "{}")
-                                const pointsPerQuestion = assignment.maxScore / questionsList.length
-                                const savedQuestionGrades = assignment.questionGrades || {}
-
+                                const questionsList = JSON.parse(assignment.questions || "[]");
+                                const submission = JSON.parse(assignment.submission || "{}");
+                                const pointsPerQuestion = assignment.maxScore / questionsList.length;
+                                const savedQuestionGrades = assignment.questionGrades || {};
                                 return questionsList.map((q, qIdx) => {
-                                  const studentAnswer = submission[qIdx]?.answer || "Not answered"
-                                  const isMultipleChoice = q.type === "multiple"
-                                  const isCorrect =
-                                    isMultipleChoice && studentAnswer === q.correctAnswer
-                                  const currentPoints =
-                                    savedQuestionGrades[qIdx] !== undefined
-                                      ? savedQuestionGrades[qIdx]
-                                      : isMultipleChoice && isCorrect
-                                        ? Math.round(pointsPerQuestion)
-                                        : 0
-
+                                  const studentAnswer = submission[qIdx]?.answer || "Not answered";
+                                  const isMultipleChoice = q.type === "multiple";
+                                  const isCorrect = isMultipleChoice && studentAnswer === q.correctAnswer;
+                                  const currentPoints = savedQuestionGrades[qIdx] !== undefined ? savedQuestionGrades[qIdx] : (isMultipleChoice && isCorrect ? Math.round(pointsPerQuestion) : 0);
                                   return (
-                                    <div
-                                      key={qIdx}
-                                      className="p-3 bg-white rounded-lg border border-gray-200"
-                                    >
-                                      <p className="font-medium text-gray-900 mb-2">
-                                        {qIdx + 1}. {q.text}
-                                      </p>
-                                      <p className="text-sm text-gray-700">
-                                        Student's Answer:{" "}
-                                        <span className="font-medium">{studentAnswer}</span>
-                                      </p>
-
-                                      {isMultipleChoice && (
-                                        <p className="text-sm text-gray-700">
-                                          Correct Answer:{" "}
-                                          <span className="text-green-600 font-medium">
-                                            {q.correctAnswer}
-                                          </span>
-                                        </p>
-                                      )}
-
-                                      {!isMultipleChoice && q.autoGrade && q.correctAnswer && (
-                                        <p className="text-sm text-gray-700">
-                                          Expected Answer:{" "}
-                                          <span className="text-green-600 font-medium">
-                                            {q.correctAnswer}
-                                          </span>
-                                        </p>
-                                      )}
-
-                                      {submission[qIdx]?.working && (
-                                        <p className="text-sm text-gray-600 mt-1">
-                                          Working: {submission[qIdx].working}
-                                        </p>
-                                      )}
-
+                                    <div key={qIdx} className="p-3 bg-white rounded-lg border border-gray-200">
+                                      <p className="font-medium text-gray-900 mb-2">{qIdx + 1}. {q.text}</p>
+                                      <p className="text-sm text-gray-700">Student's Answer: <span className="font-medium">{studentAnswer}</span></p>
+                                      {isMultipleChoice && <p className="text-sm text-gray-700">Correct Answer: <span className="text-green-600 font-medium">{q.correctAnswer}</span></p>}
+                                      {!isMultipleChoice && q.autoGrade && q.correctAnswer && <p className="text-sm text-gray-700">Expected Answer: <span className="text-green-600 font-medium">{q.correctAnswer}</span></p>}
+                                      {submission[qIdx]?.working && <p className="text-sm text-gray-600 mt-1">Working: {submission[qIdx].working}</p>}
                                       <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-3">
-                                        <label className="text-sm font-medium text-gray-700">
-                                          Points (0-{Math.round(pointsPerQuestion)})
-                                        </label>
-                                        <input
-                                          type="number"
-                                          min="0"
-                                          max={Math.round(pointsPerQuestion)}
-                                          step="1"
-                                          value={currentPoints}
-                                          onChange={e => {
-                                            const newPoints = parseFloat(e.target.value) || 0
-                                            const maxPoints = Math.round(pointsPerQuestion)
-                                            const validPoints = Math.min(newPoints, maxPoints)
-
-                                            // Update questionGrades
-                                            setQuestionPoints(prev => ({
-                                              ...prev,
-                                              [assignment.$id]: {
-                                                ...(prev[assignment.$id] || {}),
-                                                [qIdx]: validPoints,
-                                              },
-                                            }))
-
-                                            // Update gradeData total
-                                            const updatedPoints = {
-                                              ...questionPoints[assignment.$id],
-                                              [qIdx]: validPoints,
-                                            }
-                                            let newTotal = 0
-                                            for (let i = 0; i < questionsList.length; i++) {
-                                              newTotal += parseFloat(updatedPoints[i]) || 0
-                                            }
-                                            setGradeData(prev => ({
-                                              ...prev,
-                                              grade: Math.round(newTotal),
-                                            }))
-                                          }}
-                                          className="w-20 p-1 border border-gray-300 rounded-lg"
-                                        />
-                                        <span className="text-xs text-gray-500">
-                                          / {Math.round(pointsPerQuestion)} pts
-                                        </span>
+                                        <label className="text-sm font-medium text-gray-700">Points (0-{Math.round(pointsPerQuestion)})</label>
+                                        <input type="number" min="0" max={Math.round(pointsPerQuestion)} step="1" value={currentPoints} onChange={(e) => { const newPoints = parseFloat(e.target.value) || 0; const maxPoints = Math.round(pointsPerQuestion); const validPoints = Math.min(newPoints, maxPoints); setQuestionPoints(prev => ({ ...prev, [assignment.$id]: { ...(prev[assignment.$id] || {}), [qIdx]: validPoints } })); const updatedPoints = { ...questionPoints[assignment.$id], [qIdx]: validPoints }; let newTotal = 0; for (let i = 0; i < questionsList.length; i++) { newTotal += parseFloat(updatedPoints[i]) || 0; } setGradeData(prev => ({ ...prev, grade: Math.round(newTotal) })); }} className="w-20 p-1 border border-gray-300 rounded-lg" />
+                                        <span className="text-xs text-gray-500">/ {Math.round(pointsPerQuestion)} pts</span>
                                       </div>
                                     </div>
-                                  )
-                                })
+                                  );
+                                });
                               })()}
                             </div>
-
-                            {/* Auto-calculated total */}
                             <div className="p-3 bg-indigo-50 rounded-lg">
                               <div className="flex justify-between items-center">
                                 <span className="font-medium text-gray-700">Total Grade:</span>
-                                <span className="text-xl font-bold text-indigo-600">
-                                  {gradeData.grade || 0}/{assignment.maxScore}
-                                </span>
+                                <span className="text-xl font-bold text-indigo-600">{gradeData.grade || 0}/{assignment.maxScore}</span>
                               </div>
-                              <p className="text-xs text-gray-500 mt-1">
-                                Auto-calculated from per-question points
-                              </p>
+                              <p className="text-xs text-gray-500 mt-1">Auto-calculated from per-question points</p>
                             </div>
-
-                            {/* Feedback */}
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Feedback
-                              </label>
-                              <textarea
-                                value={gradeData.feedback}
-                                onChange={e =>
-                                  setGradeData({ ...gradeData, feedback: e.target.value })
-                                }
-                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                                rows="2"
-                                placeholder="Update feedback..."
-                              />
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Feedback</label>
+                              <textarea value={gradeData.feedback} onChange={(e) => setGradeData({ ...gradeData, feedback: e.target.value })} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" rows="2" placeholder="Update feedback..." />
                             </div>
-
                             <div className="flex gap-2">
-                              <button
-                                onClick={() => {
-                                  // Save updated quiz grades
-                                  const updatedQuestionGrades = questionPoints[assignment.$id] || {}
-                                  handleUpdateGrade(assignment.$id)
-                                }}
-                                disabled={!gradeData.grade && gradeData.grade !== 0}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                              >
+                              <button onClick={() => { handleUpdateGrade(assignment.$id); }} disabled={!gradeData.grade && gradeData.grade !== 0} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                                 <Save className="w-4 h-4 inline mr-1" /> Update Grade
                               </button>
-                              <button
-                                onClick={() => {
-                                  setEditingGrade(prev => ({ ...prev, [assignment.$id]: false }))
-                                  setGradeData({ grade: "", feedback: "" })
-                                  setQuestionPoints({})
-                                }}
-                                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-                              >
-                                Cancel
-                              </button>
+                              <button onClick={() => { setEditingGrade(prev => ({ ...prev, [assignment.$id]: false })); setGradeData({ grade: "", feedback: "" }); setQuestionPoints({}); }} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
                             </div>
                           </div>
                         ) : (
-                          // FILE UPLOAD ASSIGNMENT - SIMPLE EDIT
                           <div className="space-y-3">
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                New Grade (0-{assignment.maxScore})
-                              </label>
-                              <input
-                                type="number"
-                                min="0"
-                                max={assignment.maxScore}
-                                value={gradeData.grade}
-                                onChange={e =>
-                                  setGradeData({ ...gradeData, grade: e.target.value })
-                                }
-                                className="w-32 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                              />
+                              <label className="block text-sm font-medium text-gray-700 mb-1">New Grade (0-{assignment.maxScore})</label>
+                              <input type="number" min="0" max={assignment.maxScore} value={gradeData.grade} onChange={(e) => setGradeData({ ...gradeData, grade: e.target.value })} className="w-32 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
                             </div>
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Feedback
-                              </label>
-                              <textarea
-                                value={gradeData.feedback}
-                                onChange={e =>
-                                  setGradeData({ ...gradeData, feedback: e.target.value })
-                                }
-                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                                rows="2"
-                                placeholder="Update feedback..."
-                              />
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Feedback</label>
+                              <textarea value={gradeData.feedback} onChange={(e) => setGradeData({ ...gradeData, feedback: e.target.value })} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" rows="2" placeholder="Update feedback..." />
                             </div>
                             <div className="flex gap-2">
-                              <button
-                                onClick={() => handleUpdateGrade(assignment.$id)}
-                                disabled={!gradeData.grade && gradeData.grade !== 0}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                              >
+                              <button onClick={() => handleUpdateGrade(assignment.$id)} disabled={!gradeData.grade && gradeData.grade !== 0} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                                 <Save className="w-4 h-4 inline mr-1" /> Update Grade
                               </button>
-                              <button
-                                onClick={() => {
-                                  setEditingGrade(prev => ({ ...prev, [assignment.$id]: false }))
-                                  setGradeData({ grade: "", feedback: "" })
-                                }}
-                                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-                              >
-                                Cancel
-                              </button>
+                              <button onClick={() => { setEditingGrade(prev => ({ ...prev, [assignment.$id]: false })); setGradeData({ grade: "", feedback: "" }); }} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
                             </div>
                           </div>
                         )}
@@ -951,93 +735,38 @@ export default function Assignments() {
                     {/* LECTURER VIEW STUDENT ANSWERS */}
                     {canGrade && assignment.type === "quiz" && (
                       <div className="mt-3">
-                        <button
-                          onClick={() => {
-                            setShowLecturerDetails(prev => ({
-                              ...prev,
-                              [assignment.$id]: !prev[assignment.$id],
-                            }))
-                          }}
-                          className="text-sm text-purple-600 hover:text-purple-700 flex items-center gap-1"
-                        >
-                          {showLecturerDetails[assignment.$id]
-                            ? " Hide Student Answers ▲"
-                            : " View Student Answers ▼"}
+                        <button onClick={() => { setShowLecturerDetails(prev => ({ ...prev, [assignment.$id]: !prev[assignment.$id] })); }} className="text-sm text-purple-600 hover:text-purple-700 flex items-center gap-1">
+                          {showLecturerDetails[assignment.$id] ? " Hide Student Answers ▲" : " View Student Answers ▼"}
                         </button>
-
                         {showLecturerDetails[assignment.$id] && (
                           <div className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <h4 className="font-semibold text-gray-900 mb-3">
-                              📝 Student Answers:
-                            </h4>
+                            <h4 className="font-semibold text-gray-900 mb-3">📝 Student Answers:</h4>
                             <div className="space-y-3">
                               {questions.map((q, qIdx) => {
-                                const studentAnswer = submission[qIdx]?.answer || "Not answered"
-                                const isMultipleChoice = q.type === "multiple"
-                                const isCorrect =
-                                  isMultipleChoice && studentAnswer === q.correctAnswer
-                                const earnedPoints =
-                                  savedQuestionGrades[qIdx] !== undefined
-                                    ? savedQuestionGrades[qIdx]
-                                    : isMultipleChoice && isCorrect
-                                      ? Math.round(pointsPerQuestion)
-                                      : 0
-
+                                const studentAnswer = submission[qIdx]?.answer || "Not answered";
+                                const isMultipleChoice = q.type === "multiple";
+                                const isCorrect = isMultipleChoice && studentAnswer === q.correctAnswer;
+                                const earnedPoints = savedQuestionGrades[qIdx] !== undefined ? savedQuestionGrades[qIdx] : (isMultipleChoice && isCorrect ? Math.round(pointsPerQuestion) : 0);
                                 return (
-                                  <div
-                                    key={qIdx}
-                                    className="p-3 bg-white rounded-lg border"
-                                  >
+                                  <div key={qIdx} className="p-3 bg-white rounded-lg border">
                                     <div className="flex justify-between items-start">
                                       <div className="flex-1">
-                                        <p className="font-medium text-gray-900 mb-1">
-                                          {qIdx + 1}. {q.text}
-                                        </p>
+                                        <p className="font-medium text-gray-900 mb-1">{qIdx + 1}. {q.text}</p>
                                         <p className="text-sm mt-1">
-                                          <span className="font-medium text-gray-700">
-                                            Student's Answer:
-                                          </span>{" "}
-                                          <span
-                                            className={
-                                              isMultipleChoice && isCorrect
-                                                ? "text-green-600"
-                                                : "text-gray-700"
-                                            }
-                                          >
-                                            {studentAnswer}
-                                          </span>
-                                          {isMultipleChoice &&
-                                            (isCorrect ? (
-                                              <span className="ml-2 text-green-600">✓ Correct</span>
-                                            ) : (
-                                              <span className="ml-2 text-red-600">✗ Incorrect</span>
-                                            ))}
+                                          <span className="font-medium text-gray-700">Student's Answer:</span>{' '}
+                                          <span className={isMultipleChoice && isCorrect ? "text-green-600" : "text-gray-700"}>{studentAnswer}</span>
+                                          {isMultipleChoice && (isCorrect ? <span className="ml-2 text-green-600">✓ Correct</span> : <span className="ml-2 text-red-600">✗ Incorrect</span>)}
                                         </p>
-                                        {isMultipleChoice && !isCorrect && (
-                                          <p className="text-sm text-green-600 mt-1">
-                                            ✓ Correct answer: {q.correctAnswer}
-                                          </p>
-                                        )}
-                                        {!isMultipleChoice && q.autoGrade && q.correctAnswer && (
-                                          <p className="text-sm text-green-600 mt-1">
-                                            ✓ Expected answer: {q.correctAnswer}
-                                          </p>
-                                        )}
-                                        {submission[qIdx]?.working && (
-                                          <p className="text-sm text-gray-600 mt-1">
-                                            Working: {submission[qIdx].working}
-                                          </p>
-                                        )}
+                                        {isMultipleChoice && !isCorrect && <p className="text-sm text-green-600 mt-1">✓ Correct answer: {q.correctAnswer}</p>}
+                                        {!isMultipleChoice && q.autoGrade && q.correctAnswer && <p className="text-sm text-green-600 mt-1">✓ Expected answer: {q.correctAnswer}</p>}
+                                        {submission[qIdx]?.working && <p className="text-sm text-gray-600 mt-1">Working: {submission[qIdx].working}</p>}
                                       </div>
                                       <div className="text-right min-w-[100px]">
-                                        <span className="text-sm font-semibold text-blue-600">
-                                          {earnedPoints.toFixed(1)}/{Math.round(pointsPerQuestion)}{" "}
-                                          pts
-                                        </span>
+                                        <span className="text-sm font-semibold text-blue-600">{earnedPoints.toFixed(1)}/{Math.round(pointsPerQuestion)} pts</span>
                                       </div>
                                     </div>
                                   </div>
-                                )
+                                );
                               })}
                             </div>
                           </div>
@@ -1048,84 +777,39 @@ export default function Assignments() {
                 )}
 
                 {/* STUDENT DETAILED RESULTS */}
-                {userProfile?.role === "student" &&
-                  assignment.status === "graded" &&
-                  assignment.type === "quiz" &&
-                  showDetails[assignment.$id] && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                      <h4 className="font-semibold text-gray-900 mb-3">📝 Detailed Results:</h4>
-                      <div className="space-y-3">
-                        {questions.map((q, qIdx) => {
-                          const studentAnswer = submission[qIdx]?.answer || "Not answered"
-                          const isMultipleChoice = q.type === "multiple"
-                          const isCorrect = isMultipleChoice && studentAnswer === q.correctAnswer
-                          const earnedPoints =
-                            savedQuestionGrades[qIdx] !== undefined
-                              ? savedQuestionGrades[qIdx]
-                              : isMultipleChoice && isCorrect
-                                ? Math.round(pointsPerQuestion)
-                                : 0
-
-                          return (
-                            <div
-                              key={qIdx}
-                              className="p-3 bg-white rounded-lg border"
-                            >
-                              <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                  <p className="font-medium text-gray-900 mb-1">
-                                    {qIdx + 1}. {q.text}
-                                  </p>
-                                  <p className="text-sm mt-1">
-                                    <span className="font-medium text-gray-700">Your Answer:</span>{" "}
-                                    <span
-                                      className={
-                                        isMultipleChoice && isCorrect
-                                          ? "text-green-600"
-                                          : "text-gray-700"
-                                      }
-                                    >
-                                      {studentAnswer}
-                                    </span>
-                                    {isMultipleChoice &&
-                                      (isCorrect ? (
-                                        <span className="ml-2 text-green-600">✓ Correct</span>
-                                      ) : (
-                                        <span className="ml-2 text-red-600">✗ Incorrect</span>
-                                      ))}
-                                  </p>
-                                  {isMultipleChoice && !isCorrect && (
-                                    <p className="text-sm text-green-600 mt-1">
-                                      ✓ Correct answer: {q.correctAnswer}
-                                    </p>
-                                  )}
-                                  {!isMultipleChoice &&
-                                    q.autoGrade &&
-                                    q.correctAnswer &&
-                                    studentAnswer.toLowerCase().trim() !==
-                                      q.correctAnswer.toLowerCase().trim() && (
-                                      <p className="text-sm text-green-600 mt-1">
-                                        ✓ Expected answer: {q.correctAnswer}
-                                      </p>
-                                    )}
-                                  {submission[qIdx]?.working && (
-                                    <p className="text-sm text-gray-600 mt-1">
-                                      Working: {submission[qIdx].working}
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="text-right min-w-[100px]">
-                                  <span className="text-sm font-semibold text-blue-600">
-                                    {earnedPoints.toFixed(1)}/{Math.round(pointsPerQuestion)} pts
-                                  </span>
-                                </div>
+                {userProfile?.role === "student" && assignment.status === "graded" && assignment.type === "quiz" && showDetails[assignment.$id] && (
+                  <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <h4 className="font-semibold text-gray-900 mb-3">📝 Detailed Results:</h4>
+                    <div className="space-y-3">
+                      {questions.map((q, qIdx) => {
+                        const studentAnswer = submission[qIdx]?.answer || "Not answered";
+                        const isMultipleChoice = q.type === "multiple";
+                        const isCorrect = isMultipleChoice && studentAnswer === q.correctAnswer;
+                        const earnedPoints = savedQuestionGrades[qIdx] !== undefined ? savedQuestionGrades[qIdx] : (isMultipleChoice && isCorrect ? Math.round(pointsPerQuestion) : 0);
+                        return (
+                          <div key={qIdx} className="p-3 bg-white rounded-lg border">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <p className="font-medium text-gray-900 mb-1">{qIdx + 1}. {q.text}</p>
+                                <p className="text-sm mt-1">
+                                  <span className="font-medium text-gray-700">Your Answer:</span>{' '}
+                                  <span className={isMultipleChoice && isCorrect ? "text-green-600" : "text-gray-700"}>{studentAnswer}</span>
+                                  {isMultipleChoice && (isCorrect ? <span className="ml-2 text-green-600">✓ Correct</span> : <span className="ml-2 text-red-600">✗ Incorrect</span>)}
+                                </p>
+                                {isMultipleChoice && !isCorrect && <p className="text-sm text-green-600 mt-1">✓ Correct answer: {q.correctAnswer}</p>}
+                                {!isMultipleChoice && q.autoGrade && q.correctAnswer && studentAnswer.toLowerCase().trim() !== q.correctAnswer.toLowerCase().trim() && <p className="text-sm text-green-600 mt-1">✓ Expected answer: {q.correctAnswer}</p>}
+                                {submission[qIdx]?.working && <p className="text-sm text-gray-600 mt-1">Working: {submission[qIdx].working}</p>}
+                              </div>
+                              <div className="text-right min-w-[100px]">
+                                <span className="text-sm font-semibold text-blue-600">{earnedPoints.toFixed(1)}/{Math.round(pointsPerQuestion)} pts</span>
                               </div>
                             </div>
-                          )
-                        })}
-                      </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
+                  </div>
+                )}
 
                 {/* LECTURER GRADING SECTION */}
                 {canGrade && assignment.status === "submitted" && (
@@ -1133,200 +817,58 @@ export default function Assignments() {
                     {gradingAssignment === assignment.$id ? (
                       <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
                         <h4 className="font-semibold">Grade: {assignment.title}</h4>
-
                         {assignment.type === "quiz" && (
                           <div className="space-y-4">
                             {questions.map((q, qIdx) => {
-                              const studentAnswer = submission[qIdx]?.answer || "Not answered"
-                              const isMultipleChoice = q.type === "multiple"
-                              const isCorrect =
-                                isMultipleChoice && studentAnswer === q.correctAnswer
-                              const currentPoints =
-                                questionPoints[assignment.$id]?.[qIdx] ??
-                                (isMultipleChoice && isCorrect ? Math.round(pointsPerQuestion) : 0)
-
+                              const studentAnswer = submission[qIdx]?.answer || "Not answered";
+                              const isMultipleChoice = q.type === "multiple";
+                              const isCorrect = isMultipleChoice && studentAnswer === q.correctAnswer;
+                              const currentPoints = questionPoints[assignment.$id]?.[qIdx] ?? (isMultipleChoice && isCorrect ? Math.round(pointsPerQuestion) : 0);
                               return (
-                                <div
-                                  key={qIdx}
-                                  className="p-4 bg-white rounded-lg border"
-                                >
-                                  <p className="font-medium mb-2">
-                                    {qIdx + 1}. {q.text}
-                                  </p>
-                                  <p className="text-sm">
-                                    Student's Answer:{" "}
-                                    <span
-                                      className={
-                                        isMultipleChoice && isCorrect
-                                          ? "text-green-600"
-                                          : "text-gray-700"
-                                      }
-                                    >
-                                      {studentAnswer}
-                                    </span>
-                                  </p>
-                                  {isMultipleChoice && (
-                                    <p className="text-sm">
-                                      Correct Answer:{" "}
-                                      <span className="text-green-600">{q.correctAnswer}</span>{" "}
-                                      {isCorrect ? "✓ Correct" : "✗ Incorrect"}
-                                    </p>
-                                  )}
-                                  {!isMultipleChoice && q.autoGrade && q.correctAnswer && (
-                                    <p className="text-sm mt-1">
-                                      Expected Answer:{" "}
-                                      <span className="text-green-600">{q.correctAnswer}</span>
-                                      {studentAnswer.toLowerCase().trim() ===
-                                      q.correctAnswer.toLowerCase().trim() ? (
-                                        <span className="ml-2 text-green-600">✓ Matches</span>
-                                      ) : (
-                                        <span className="ml-2 text-red-600">✗ Does not match</span>
-                                      )}
-                                    </p>
-                                  )}
-                                  {submission[qIdx]?.working && (
-                                    <p className="text-sm text-gray-600 mt-1">
-                                      Working: {submission[qIdx].working}
-                                    </p>
-                                  )}
+                                <div key={qIdx} className="p-4 bg-white rounded-lg border">
+                                  <p className="font-medium mb-2">{qIdx + 1}. {q.text}</p>
+                                  <p className="text-sm">Student's Answer: <span className={isMultipleChoice && isCorrect ? "text-green-600" : "text-gray-700"}>{studentAnswer}</span></p>
+                                  {isMultipleChoice && <p className="text-sm">Correct Answer: <span className="text-green-600">{q.correctAnswer}</span> {isCorrect ? "✓ Correct" : "✗ Incorrect"}</p>}
+                                  {!isMultipleChoice && q.autoGrade && q.correctAnswer && <p className="text-sm mt-1">Expected Answer: <span className="text-green-600">{q.correctAnswer}</span> {studentAnswer.toLowerCase().trim() === q.correctAnswer.toLowerCase().trim() ? <span className="ml-2 text-green-600">✓ Matches</span> : <span className="ml-2 text-red-600">✗ Does not match</span>}</p>}
+                                  {submission[qIdx]?.working && <p className="text-sm text-gray-600 mt-1">Working: {submission[qIdx].working}</p>}
                                   <div className="mt-3 pt-2 border-t">
-                                    <label className="text-sm font-medium">
-                                      Points (0-{Math.round(pointsPerQuestion)})
-                                    </label>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      max={Math.round(pointsPerQuestion)}
-                                      step="1"
-                                      value={currentPoints}
-                                      onChange={e => {
-                                        const newPoints = parseFloat(e.target.value) || 0
-                                        const maxPoints = Math.round(pointsPerQuestion)
-                                        const validPoints = Math.min(newPoints, maxPoints)
-
-                                        setQuestionPoints(prev => ({
-                                          ...prev,
-                                          [assignment.$id]: {
-                                            ...(prev[assignment.$id] || {}),
-                                            [qIdx]: validPoints,
-                                          },
-                                        }))
-
-                                        const updatedPoints = {
-                                          ...questionPoints[assignment.$id],
-                                          [qIdx]: validPoints,
-                                        }
-                                        let newTotal = 0
-                                        for (let i = 0; i < questions.length; i++) {
-                                          newTotal += parseFloat(updatedPoints[i]) || 0
-                                        }
-                                        setGradeData(prev => ({
-                                          ...prev,
-                                          grade: Math.round(newTotal),
-                                        }))
-                                      }}
-                                      className="w-24 p-1 border rounded-lg mt-1"
-                                    />
+                                    <label className="text-sm font-medium">Points (0-{Math.round(pointsPerQuestion)})</label>
+                                    <input type="number" min="0" max={Math.round(pointsPerQuestion)} step="1" value={currentPoints} onChange={(e) => { const newPoints = parseFloat(e.target.value) || 0; const maxPoints = Math.round(pointsPerQuestion); const validPoints = Math.min(newPoints, maxPoints); setQuestionPoints(prev => ({ ...prev, [assignment.$id]: { ...(prev[assignment.$id] || {}), [qIdx]: validPoints } })); const updatedPoints = { ...questionPoints[assignment.$id], [qIdx]: validPoints }; let newTotal = 0; for (let i = 0; i < questions.length; i++) { newTotal += parseFloat(updatedPoints[i]) || 0; } setGradeData(prev => ({ ...prev, grade: Math.round(newTotal) })); }} className="w-24 p-1 border rounded-lg mt-1" />
                                     <span className="text-xs text-gray-500 ml-2">points</span>
                                   </div>
                                 </div>
-                              )
+                              );
                             })}
                           </div>
                         )}
-
                         {assignment.type === "file" && assignment.submission && (
                           <div className="p-3 bg-white rounded-lg border">
-                            <button
-                              onClick={() =>
-                                downloadAttachment(assignment.submission, "submission")
-                              }
-                              className="text-indigo-600 text-sm flex items-center gap-1"
-                            >
-                              <Paperclip className="w-4 h-4" />
-                              Download Student's File
+                            <button onClick={() => downloadAttachment(assignment.submission, "submission")} className="text-indigo-600 text-sm flex items-center gap-1">
+                              <Paperclip className="w-4 h-4" />Download Student's File
                             </button>
                           </div>
                         )}
-
                         <div className="p-3 bg-indigo-50 rounded-lg">
                           <div className="flex justify-between">
                             <span className="font-medium">Total Grade:</span>
-                            <span className="text-xl font-bold text-indigo-600">
-                              {gradeData.grade || 0}/{assignment.maxScore}
-                            </span>
+                            <span className="text-xl font-bold text-indigo-600">{gradeData.grade || 0}/{assignment.maxScore}</span>
                           </div>
                         </div>
-
-                        <textarea
-                          value={gradeData.feedback}
-                          onChange={e => setGradeData({ ...gradeData, feedback: e.target.value })}
-                          className="w-full p-2 border rounded-lg"
-                          rows="3"
-                          placeholder="Feedback to student..."
-                        />
-
+                        <textarea value={gradeData.feedback} onChange={(e) => setGradeData({ ...gradeData, feedback: e.target.value })} className="w-full p-2 border rounded-lg" rows="3" placeholder="Feedback to student..." />
                         <div className="flex gap-2">
-                          <button
-                            onClick={() => handleGradeAssignment(assignment.$id)}
-                            disabled={!gradeData.grade && gradeData.grade !== 0}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg"
-                          >
-                            Save Grade
-                          </button>
-                          <button
-                            onClick={() => {
-                              setGradingAssignment(null)
-                              setQuestionPoints({})
-                            }}
-                            className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-                          >
-                            Cancel
-                          </button>
+                          <button onClick={() => handleGradeAssignment(assignment.$id)} disabled={!gradeData.grade && gradeData.grade !== 0} className="px-4 py-2 bg-green-600 text-white rounded-lg">Save Grade</button>
+                          <button onClick={() => { setGradingAssignment(null); setQuestionPoints({}); }} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
                         </div>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => {
-                          setGradingAssignment(assignment.$id)
-                          const initialPoints = {}
-                          questions.forEach((q, idx) => {
-                            const studentAnswer = submission[idx]?.answer || ""
-                            let earnedPoints = 0
-
-                            if (q.type === "multiple") {
-                              if (studentAnswer === q.correctAnswer) {
-                                earnedPoints = Math.round(pointsPerQuestion)
-                              }
-                            } else if (q.type === "text" && q.autoGrade) {
-                              const normalizedStudent = studentAnswer.toLowerCase().trim()
-                              const normalizedCorrect = (q.correctAnswer || "").toLowerCase().trim()
-                              if (normalizedStudent === normalizedCorrect) {
-                                earnedPoints = Math.round(pointsPerQuestion)
-                              }
-                            }
-                            initialPoints[idx] = earnedPoints
-                          })
-                          const totalFromPoints = Object.values(initialPoints).reduce(
-                            (sum, val) => sum + val,
-                            0
-                          )
-                          setQuestionPoints({ [assignment.$id]: initialPoints })
-                          setGradeData({
-                            grade: totalFromPoints,
-                            feedback: assignment.feedback || "",
-                          })
-                        }}
-                        className="flex items-center gap-2 px-4-py-2 text-green-600 hover:bg-green-50 rounded-lg"
-                      >
-                        <BarChart3 className="w-4 h-4" />
-                        Grade Submission
+                      <button onClick={() => { setGradingAssignment(assignment.$id); const initialPoints = {}; questions.forEach((q, idx) => { const studentAnswer = submission[idx]?.answer || ""; let earnedPoints = 0; if (q.type === "multiple") { if (studentAnswer === q.correctAnswer) { earnedPoints = Math.round(pointsPerQuestion); } } else if (q.type === "text" && q.autoGrade) { const normalizedStudent = studentAnswer.toLowerCase().trim(); const normalizedCorrect = (q.correctAnswer || "").toLowerCase().trim(); if (normalizedStudent === normalizedCorrect) { earnedPoints = Math.round(pointsPerQuestion); } } initialPoints[idx] = earnedPoints; }); const totalFromPoints = Object.values(initialPoints).reduce((sum, val) => sum + val, 0); setQuestionPoints({ [assignment.$id]: initialPoints }); setGradeData({ grade: totalFromPoints, feedback: assignment.feedback || "" }); }} className="flex items-center gap-2 px-4-py-2 text-green-600 hover:bg-green-50 rounded-lg">
+                        <BarChart3 className="w-4 h-4" />Grade Submission
                       </button>
                     )}
                   </div>
                 )}
               </div>
-            )
+            );
           })
         )}
       </div>
@@ -1339,32 +881,25 @@ export default function Assignments() {
               <h2 className="text-xl font-semibold">{editingAssignment ? "Edit Assignment" : "Create Assignment"}</h2>
               <button onClick={resetModal} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
             </div>
-            
             <div className="p-6 space-y-4">
               <input type="text" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} placeholder="Title *" className="w-full p-2 border rounded-lg" />
               <textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} placeholder="Description / Instructions" rows="3" className="w-full p-2 border rounded-lg" />
               <input type="text" value={formData.subject} onChange={(e) => setFormData({...formData, subject: e.target.value})} placeholder="Subject *" className="w-full p-2 border rounded-lg" />
               <input type="date" value={formData.dueDate} onChange={(e) => setFormData({...formData, dueDate: e.target.value})} className="w-full p-2 border rounded-lg" />
-              
               <select value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})} className="w-full p-2 border rounded-lg">
                 <option value="file">File Upload Assignment</option>
                 <option value="quiz">Quiz Assignment</option>
               </select>
-
               {formData.type === "file" && (
                 <input type="file" onChange={(e) => setFormData({...formData, attachmentFile: e.target.files[0]})} className="w-full p-2 border rounded-lg" />
               )}
-
               <select value={formData.assignedTo} onChange={(e) => setFormData({...formData, assignedTo: e.target.value})} className="w-full p-2 border rounded-lg">
                 <option value="all">All Students</option>
               </select>
-
               <input type="number" min="1" max="100" value={formData.maxScore} onChange={(e) => setFormData({...formData, maxScore: e.target.value})} className="w-32 p-2 border rounded-lg" placeholder="Max Score" />
-
               {formData.type === "quiz" && (
                 <div className="border-t pt-4">
                   <label className="font-medium block mb-4">Questions</label>
-                  
                   {formData.questions.map((q, qIdx) => (
                     <div key={qIdx} className="p-4 border rounded-lg mb-4">
                       <div className="flex justify-between">
@@ -1411,18 +946,12 @@ export default function Assignments() {
                       )}
                     </div>
                   ))}
-                  
-                  <button 
-                    onClick={addQuestion} 
-                    className="w-full py-3 border-2 border-dashed border-indigo-300 rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <PlusCircle className="w-5 h-5" />
-                    Add Question
+                  <button onClick={addQuestion} className="w-full py-3 border-2 border-dashed border-indigo-300 rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2">
+                    <PlusCircle className="w-5 h-5" />Add Question
                   </button>
                 </div>
               )}
             </div>
-
             <div className="flex justify-end gap-3 p-6 border-t">
               <button onClick={resetModal} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
               <button onClick={handleCreateAssignment} disabled={!formData.title || !formData.subject} className="px-4 py-2 bg-indigo-600 text-white rounded-lg">

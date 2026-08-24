@@ -5,10 +5,12 @@ import { DATABASE_ID, COLLECTIONS } from "../../lib/config";
 import { Query } from "appwrite";
 import { CheckSquare, FileText, Award, Clock, ChevronRight, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
+import { StatsSkeleton } from "../../components/LoadingSkeleton.jsx";
+import { Skeleton } from "../../components/Skeleton.jsx";
 
 export default function StudentDashboard() {
   const { user, userProfile } = useAuth();
-  const [announcements, setAnnouncements] = useState([]);  // ← Fixed: array not object
+  const [announcements, setAnnouncements] = useState([]);
   const [stats, setStats] = useState({
     tasks: { total: 0, completed: 0 },
     assignments: { total: 0, graded: 0, pendingGrading: 0, averageGrade: 0 },
@@ -24,14 +26,12 @@ export default function StudentDashboard() {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      // Load tasks
       const tasksRes = await databases.listDocuments(
         DATABASE_ID,
         COLLECTIONS.TASKS,
         [Query.equal("userId", user.$id)]
       );
       
-      // Load assignments
       const assignmentsRes = await databases.listDocuments(
         DATABASE_ID,
         COLLECTIONS.ASSIGNMENTS,
@@ -43,7 +43,6 @@ export default function StudentDashboard() {
         ]
       );
       
-      // Load announcements - MOVED INSIDE THE FUNCTION
       const announcementsRes = await databases.listDocuments(
         DATABASE_ID,
         COLLECTIONS.ANNOUNCEMENTS,
@@ -91,10 +90,25 @@ export default function StudentDashboard() {
 
   if (loading) {
     return (
-      <div className="animate-pulse">
-        <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          {[1,2,3,4].map(i => <div key={i} className="h-24 bg-gray-200 rounded"></div>)}
+      <div>
+        <div className="mb-8">
+          <Skeleton className="h-8 w-64 mb-2" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <StatsSkeleton count={4} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+          <div className="bg-white p-6 rounded-xl border border-gray-200">
+            <Skeleton className="h-6 w-32 mb-4" />
+            {[1, 2, 3].map(i => (
+              <Skeleton key={i} className="h-12 w-full mb-2" />
+            ))}
+          </div>
+          <div className="bg-white p-6 rounded-xl border border-gray-200">
+            <Skeleton className="h-6 w-32 mb-4" />
+            {[1, 2, 3].map(i => (
+              <Skeleton key={i} className="h-12 w-full mb-2" />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -107,7 +121,6 @@ export default function StudentDashboard() {
         <p className="text-gray-600 mt-1">Here's your learning progress summary</p>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-white p-4 rounded-xl border border-gray-200">
           <div className="flex items-center justify-between">
@@ -157,7 +170,6 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* Latest Announcements */}
       {announcements.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -165,7 +177,7 @@ export default function StudentDashboard() {
             Latest Announcements
           </h2>
           <div className="space-y-3">
-            {announcements.map((announcement) => (
+            {announcements.slice(0, 5).map(announcement => (
               <div key={announcement.$id} className="p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
@@ -180,13 +192,9 @@ export default function StudentDashboard() {
               </div>
             ))}
           </div>
-          <Link to="/dashboard/announcements" className="mt-3 text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1 inline-block">
-            View All Announcements <ChevronRight className="w-4 h-4" />
-          </Link>
         </div>
       )}
 
-      {/* Recent Items */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-gray-200">
           <div className="p-4 border-b border-gray-200 flex justify-between items-center">
@@ -197,7 +205,7 @@ export default function StudentDashboard() {
             {stats.recentTasks.length === 0 ? (
               <div className="p-8 text-center text-gray-500">No tasks yet. Create your first task!</div>
             ) : (
-              stats.recentTasks.map((task) => (
+              stats.recentTasks.map(task => (
                 <div key={task.$id} className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`w-2 h-2 rounded-full ${task.completed ? "bg-green-500" : "bg-yellow-500"}`}></div>
@@ -224,7 +232,7 @@ export default function StudentDashboard() {
             {stats.recentAssignments.length === 0 ? (
               <div className="p-8 text-center text-gray-500">No assignments yet.</div>
             ) : (
-              stats.recentAssignments.map((assignment) => {
+              stats.recentAssignments.map(assignment => {
                 const percentage = assignment.maxScore > 0 
                   ? Math.round((assignment.grade / assignment.maxScore) * 100) 
                   : 0;

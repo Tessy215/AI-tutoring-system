@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   User, Mail, GraduationCap, Lock, Trash2, 
@@ -7,11 +7,14 @@ import {
 } from "lucide-react";
 import { useAuth } from "../Contexts/AuthContext.jsx";
 import { account } from "../lib/appwrite.js";
+import { Skeleton } from "../components/Skeleton.jsx";
+import { useTheme } from "../Contexts/ThemeContext.jsx";
 
 export default function Settings() {
   const navigate = useNavigate();
   const { user, userProfile, updateProfile } = useAuth();
-  
+  const [loading, setLoading] = useState(true);
+  const { darkMode, toggleDarkMode } = useTheme();
   // Active tab
   const [activeTab, setActiveTab] = useState("profile");
   
@@ -50,6 +53,12 @@ export default function Settings() {
     { id: "appearance", name: "Appearance", icon: Sun },
   ];
 
+  useEffect(() => {
+    if (user && userProfile) {
+      setLoading(false);
+    }
+  }, [user, userProfile]);
+
   const handleSaveProfile = async () => {
     setIsSaving(true);
     try {
@@ -73,7 +82,6 @@ export default function Settings() {
   };
 
   const handleChangePassword = async () => {
-    // Validate
     const errors = {};
     if (!passwordData.currentPassword) {
       errors.currentPassword = "Current password is required";
@@ -96,7 +104,6 @@ export default function Settings() {
     setPasswordErrors({});
     
     try {
-      // Update password using Appwrite
       await account.updatePassword(passwordData.newPassword, passwordData.currentPassword);
       alert("Password changed successfully!");
       setShowPasswordModal(false);
@@ -123,10 +130,8 @@ export default function Settings() {
     setDeleteError("");
     
     try {
-      // Delete user session and account
       await account.deleteSession("current");
       await account.delete();
-      // Redirect to landing page
       navigate("/");
     } catch (error) {
       console.error("Delete account error:", error);
@@ -134,6 +139,36 @@ export default function Settings() {
       setIsDeleting(false);
     }
   };
+
+  // Loading State
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <Skeleton className="h-8 w-48 mb-2" />
+        <Skeleton className="h-4 w-64 mb-6" />
+        <div className="flex flex-col md:flex-row gap-6">
+          <div className="w-full md:w-64">
+            <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-2">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          </div>
+          <div className="flex-1">
+            <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+              <Skeleton className="h-6 w-40 mb-2" />
+              {[1, 2, 3].map((i) => (
+                <div key={i}>
+                  <Skeleton className="h-4 w-24 mb-2" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -146,9 +181,9 @@ export default function Settings() {
         {/* Sidebar Tabs */}
         <div className="w-full md:w-64 flex-shrink-0">
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
+            {tabs.map(tab => {
+              const Icon = tab.icon
+              const isActive = activeTab === tab.id
               return (
                 <button
                   key={tab.id}
@@ -163,7 +198,7 @@ export default function Settings() {
                   <span>{tab.name}</span>
                   {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
                 </button>
-              );
+              )
             })}
           </div>
         </div>
@@ -212,33 +247,37 @@ export default function Settings() {
                     <input
                       type="text"
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={e => setFormData({ ...formData, name: e.target.value })}
                       disabled={!isEditing}
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email Address
+                  </label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                       type="email"
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onChange={e => setFormData({ ...formData, email: e.target.value })}
                       disabled={!isEditing}
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Level / Year</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Level / Year
+                  </label>
                   <div className="relative">
                     <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                       type="text"
                       value={formData.grade}
-                      onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
+                      onChange={e => setFormData({ ...formData, grade: e.target.value })}
                       disabled={!isEditing}
                       placeholder="e.g., Year 2, Grade 10"
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50"
@@ -252,11 +291,12 @@ export default function Settings() {
           {/* Account Tab */}
           {activeTab === "account" && (
             <div className="space-y-6">
-              {/* Change Password */}
               <div className="bg-white rounded-xl border border-gray-200">
                 <div className="p-6 border-b border-gray-200">
                   <h2 className="text-lg font-semibold text-gray-900">Change Password</h2>
-                  <p className="text-sm text-gray-500 mt-1">Update your password to keep your account secure</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Update your password to keep your account secure
+                  </p>
                 </div>
                 <div className="p-6">
                   <button
@@ -269,11 +309,12 @@ export default function Settings() {
                 </div>
               </div>
 
-              {/* Delete Account */}
               <div className="bg-white rounded-xl border border-red-200">
                 <div className="p-6 border-b border-red-200">
                   <h2 className="text-lg font-semibold text-red-600">Delete Account</h2>
-                  <p className="text-sm text-red-500 mt-1">Permanently delete your account and all data</p>
+                  <p className="text-sm text-red-500 mt-1">
+                    Permanently delete your account and all data
+                  </p>
                 </div>
                 <div className="p-6">
                   <button
@@ -302,40 +343,64 @@ export default function Settings() {
                 <div className="flex justify-between items-center py-2">
                   <div>
                     <p className="font-medium text-gray-900">Assignment Due Reminders</p>
-                    <p className="text-sm text-gray-500">Get notified when assignments are due soon</p>
+                    <p className="text-sm text-gray-500">
+                      Get notified when assignments are due soon
+                    </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      defaultChecked
+                    />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                   </label>
                 </div>
                 <div className="flex justify-between items-center py-2">
                   <div>
                     <p className="font-medium text-gray-900">Grade Updates</p>
-                    <p className="text-sm text-gray-500">Get notified when assignments are graded</p>
+                    <p className="text-sm text-gray-500">
+                      Get notified when assignments are graded
+                    </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      defaultChecked
+                    />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                   </label>
                 </div>
                 <div className="flex justify-between items-center py-2">
                   <div>
                     <p className="font-medium text-gray-900">New Resources</p>
-                    <p className="text-sm text-gray-500">Get notified when new study materials are uploaded</p>
+                    <p className="text-sm text-gray-500">
+                      Get notified when new study materials are uploaded
+                    </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      defaultChecked
+                    />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                   </label>
                 </div>
                 <div className="flex justify-between items-center py-2">
                   <div>
                     <p className="font-medium text-gray-900">Recommendations</p>
-                    <p className="text-sm text-gray-500">Get personalized learning recommendations</p>
+                    <p className="text-sm text-gray-500">
+                      Get personalized learning recommendations
+                    </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      defaultChecked
+                    />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                   </label>
                 </div>
@@ -345,22 +410,58 @@ export default function Settings() {
 
           {/* Appearance Tab */}
           {activeTab === "appearance" && (
-            <div className="bg-white rounded-xl border border-gray-200">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Appearance</h2>
-                <p className="text-sm text-gray-500 mt-1">Customize how the platform looks</p>
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Appearance</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  Customize how the platform looks
+                </p>
               </div>
               <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <button className="p-4 border-2 border-indigo-600 rounded-xl bg-indigo-50">
-                    <Sun className="w-6 h-6 text-indigo-600 mx-auto mb-2" />
-                    <p className="font-medium text-gray-900">Light Mode</p>
-                    <p className="text-xs text-gray-500">Default bright theme</p>
+                  <button
+                    onClick={() => {
+                      console.log("Light mode clicked, current darkMode:", darkMode)
+                      if (darkMode) toggleDarkMode()
+                    }}
+                    className={`p-4 border-2 rounded-xl transition-all ${
+                      !darkMode
+                        ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                    }`}
+                  >
+                    <Sun
+                      className={`w-6 h-6 mx-auto mb-2 ${!darkMode ? "text-indigo-600" : "text-gray-400 dark:text-gray-500"}`}
+                    />
+                    <p
+                      className={`font-medium ${!darkMode ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400"}`}
+                    >
+                      Light Mode
+                    </p>
+                    {!darkMode && (
+                      <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">✓ Active</p>
+                    )}
                   </button>
-                  <button className="p-4 border-2 border-gray-200 rounded-xl hover:border-gray-300 transition-colors">
-                    <Moon className="w-6 h-6 text-gray-600 mx-auto mb-2" />
-                    <p className="font-medium text-gray-900">Dark Mode</p>
-                    <p className="text-xs text-gray-500">Coming soon</p>
+                  <button
+                    onClick={() => {
+                      console.log("Dark mode clicked, current darkMode:", darkMode)
+                      if (!darkMode) toggleDarkMode()
+                    }}
+                    className={`p-4 border-2 rounded-xl transition-all ${
+                      darkMode
+                        ? "border-indigo-600 bg-indigo-900/20"
+                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                    }`}
+                  >
+                    <Moon
+                      className={`w-6 h-6 mx-auto mb-2 ${darkMode ? "text-indigo-400" : "text-gray-400 dark:text-gray-500"}`}
+                    />
+                    <p
+                      className={`font-medium ${darkMode ? "text-white" : "text-gray-500 dark:text-gray-400"}`}
+                    >
+                      Dark Mode
+                    </p>
+                    {darkMode && <p className="text-xs text-indigo-400 mt-1">✓ Active</p>}
                   </button>
                 </div>
               </div>
@@ -375,13 +476,18 @@ export default function Settings() {
           <div className="bg-white rounded-xl max-w-md w-full">
             <div className="flex justify-between items-center p-4 border-b">
               <h2 className="text-lg font-semibold">Change Password</h2>
-              <button onClick={() => setShowPasswordModal(false)} className="p-1 hover:bg-gray-100 rounded">
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-4 space-y-4">
               {passwordErrors.submit && (
-                <div className="p-3 bg-red-50 rounded-lg text-red-600 text-sm">{passwordErrors.submit}</div>
+                <div className="p-3 bg-red-50 rounded-lg text-red-600 text-sm">
+                  {passwordErrors.submit}
+                </div>
               )}
               <div>
                 <label className="block text-sm font-medium mb-1">Current Password</label>
@@ -389,7 +495,9 @@ export default function Settings() {
                   <input
                     type={showCurrentPassword ? "text" : "password"}
                     value={passwordData.currentPassword}
-                    onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
+                    onChange={e =>
+                      setPasswordData({ ...passwordData, currentPassword: e.target.value })
+                    }
                     className="w-full p-2 border rounded-lg pr-10"
                   />
                   <button
@@ -397,10 +505,16 @@ export default function Settings() {
                     onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2"
                   >
-                    {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showCurrentPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
-                {passwordErrors.currentPassword && <p className="text-red-600 text-xs mt-1">{passwordErrors.currentPassword}</p>}
+                {passwordErrors.currentPassword && (
+                  <p className="text-red-600 text-xs mt-1">{passwordErrors.currentPassword}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">New Password</label>
@@ -408,7 +522,9 @@ export default function Settings() {
                   <input
                     type={showNewPassword ? "text" : "password"}
                     value={passwordData.newPassword}
-                    onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                    onChange={e =>
+                      setPasswordData({ ...passwordData, newPassword: e.target.value })
+                    }
                     className="w-full p-2 border rounded-lg pr-10"
                   />
                   <button
@@ -419,7 +535,9 @@ export default function Settings() {
                     {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                {passwordErrors.newPassword && <p className="text-red-600 text-xs mt-1">{passwordErrors.newPassword}</p>}
+                {passwordErrors.newPassword && (
+                  <p className="text-red-600 text-xs mt-1">{passwordErrors.newPassword}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Confirm New Password</label>
@@ -427,7 +545,9 @@ export default function Settings() {
                   <input
                     type={showConfirmPassword ? "text" : "password"}
                     value={passwordData.confirmPassword}
-                    onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                    onChange={e =>
+                      setPasswordData({ ...passwordData, confirmPassword: e.target.value })
+                    }
                     className="w-full p-2 border rounded-lg pr-10"
                   />
                   <button
@@ -435,15 +555,30 @@ export default function Settings() {
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2"
                   >
-                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showConfirmPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
-                {passwordErrors.confirmPassword && <p className="text-red-600 text-xs mt-1">{passwordErrors.confirmPassword}</p>}
+                {passwordErrors.confirmPassword && (
+                  <p className="text-red-600 text-xs mt-1">{passwordErrors.confirmPassword}</p>
+                )}
               </div>
             </div>
             <div className="flex justify-end gap-3 p-4 border-t">
-              <button onClick={() => setShowPasswordModal(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
-              <button onClick={handleChangePassword} disabled={isChangingPassword} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleChangePassword}
+                disabled={isChangingPassword}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+              >
                 {isChangingPassword ? "Changing..." : "Change Password"}
               </button>
             </div>
@@ -457,14 +592,18 @@ export default function Settings() {
           <div className="bg-white rounded-xl max-w-md w-full">
             <div className="flex justify-between items-center p-4 border-b">
               <h2 className="text-lg font-semibold text-red-600">Delete Account</h2>
-              <button onClick={() => setShowDeleteModal(false)} className="p-1 hover:bg-gray-100 rounded">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-4 space-y-4">
               <div className="p-3 bg-red-50 rounded-lg">
                 <p className="text-sm text-red-700">
-                  ⚠️ Warning: This action is permanent and cannot be undone. All your data will be lost.
+                  ⚠️ Warning: This action is permanent and cannot be undone. All your data will be
+                  lost.
                 </p>
               </div>
               <div>
@@ -474,7 +613,7 @@ export default function Settings() {
                 <input
                   type="text"
                   value={deleteConfirmText}
-                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  onChange={e => setDeleteConfirmText(e.target.value)}
                   placeholder="DELETE"
                   className="w-full p-2 border rounded-lg font-mono"
                 />
@@ -482,8 +621,17 @@ export default function Settings() {
               </div>
             </div>
             <div className="flex justify-end gap-3 p-4 border-t">
-              <button onClick={() => setShowDeleteModal(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
-              <button onClick={handleDeleteAccount} disabled={isDeleting} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
                 {isDeleting ? "Deleting..." : "Permanently Delete"}
               </button>
             </div>
@@ -491,5 +639,5 @@ export default function Settings() {
         </div>
       )}
     </div>
-  );
+  )
 }

@@ -140,7 +140,7 @@ export default function Tasks() {
   const completedTasks = tasks.filter(t => t.completed);
 
   return (
-    // ... rest of your JSX (unchanged)
+    
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>

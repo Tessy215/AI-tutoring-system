@@ -8,6 +8,8 @@ import {
   FileText, Trash2, Eye, Download, Search, Filter,
   X, Calendar, User, BookOpen, File, FileImage, FileVideo
 } from "lucide-react";
+import { Skeleton } from "../components/skeleton.jsx";
+import { TableSkeleton } from "../components/LoadingSkeleton.jsx";
 
 const PROJECT_ID = "6a0c62610037d13e6c11";
 const APPWRITE_ENDPOINT = "https://fra.cloud.appwrite.io/v1";
@@ -144,19 +146,30 @@ export default function AdminMaterials() {
   const courses = [...new Set(resources.map(r => r.course))];
   const fileTypes = [...new Set(resources.map(r => r.resourceType))];
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="h-10 bg-gray-200 rounded mb-6"></div>
-          <div className="space-y-3">
-            {[1,2,3,4].map(i => <div key={i} className="h-16 bg-gray-200 rounded"></div>)}
+if (loading) {
+  return (
+    <div className="p-6">
+      <Skeleton className="h-8 w-48 mb-4" />
+      <Skeleton className="h-4 w-64 mb-6" />
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        {[1, 2, 3, 4].map(i => (
+          <div
+            key={i}
+            className="bg-white p-4 rounded-xl border border-gray-200"
+          >
+            <Skeleton className="h-8 w-1/2 mb-2" />
+            <Skeleton className="h-4 w-3/4" />
           </div>
-        </div>
+        ))}
       </div>
-    );
-  }
+      <Skeleton className="h-10 w-full mb-6" />
+      <TableSkeleton
+        rows={5}
+        cols={5}
+      />
+    </div>
+  )
+}
 
   return (
     <div className="p-6">

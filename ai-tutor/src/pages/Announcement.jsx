@@ -1,15 +1,16 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../Contexts/AuthContext.jsx";
-import { databases, ID } from "../lib/appwrite.js";
-import { DATABASE_ID, COLLECTIONS } from "../lib/config.js";
+import { databases, ID } from "../lib/appwrite";
+import { DATABASE_ID, COLLECTIONS } from "../lib/config";
 import { Query } from "appwrite";
 import { 
   Plus, Edit2, Trash2, X, Save, Calendar, User,
   MessageSquare, AlertCircle, CheckCircle
 } from "lucide-react";
-import { createLog } from "../lib/logService.jsx";
+import { createLog } from "../lib/logService";
+import { notifyStudentsAboutAnnouncement } from "../lib/notifications";
 
-export default function Announcements() {
+export default function Announcement() {
   const { user, userProfile } = useAuth();
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -66,9 +67,11 @@ export default function Announcements() {
 
     setIsSaving(true);
     try {
+      let doc;
+      
       if (editingAnnouncement) {
         // Update existing
-        await databases.updateDocument(
+        doc = await databases.updateDocument(
           DATABASE_ID,
           COLLECTIONS.ANNOUNCEMENTS,
           editingAnnouncement.$id,
@@ -86,7 +89,7 @@ export default function Announcements() {
         );
       } else {
         // Create new
-        await databases.createDocument(
+        doc = await databases.createDocument(
           DATABASE_ID,
           COLLECTIONS.ANNOUNCEMENTS,
           ID.unique(),
@@ -97,11 +100,21 @@ export default function Announcements() {
             createdByName: user.name,
           }
         );
+        
+        // ✅ NEW: Notify all students about the announcement
+        const notified = await notifyStudentsAboutAnnouncement(
+          formData.title,
+          formData.content,
+          user.name,
+          doc.$id
+        );
+        console.log(`Notified ${notified} students about announcement`);
+        
         await createLog(
           user.$id,
           user.name,
           "Created announcement",
-          `Created announcement: ${formData.title}`,
+          `Created announcement: ${formData.title} (${notified} students notified)`,
           "announcement"
         );
       }

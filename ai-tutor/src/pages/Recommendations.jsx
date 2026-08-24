@@ -9,6 +9,7 @@ import {
   Clock, BarChart3, Star, ThumbsUp, Sparkles
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Skeleton } from "../components/skeleton.jsx";
 
 export default function Recommendations() {
   const { user, userProfile } = useAuth();
@@ -324,17 +325,41 @@ export default function Recommendations() {
     );
   }
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="h-32 bg-gray-200 rounded mb-4"></div>
-          <div className="h-32 bg-gray-200 rounded"></div>
-        </div>
-      </div>
-    );
-  }
+ if (loading) {
+   return (
+     <div className="p-6">
+       <Skeleton className="h-8 w-64 mb-2" />
+       <Skeleton className="h-4 w-96 mb-6" />
+       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+         {[1, 2, 3, 4].map(i => (
+           <div
+             key={i}
+             className="bg-white p-4 rounded-xl border border-gray-200"
+           >
+             <Skeleton className="h-8 w-1/2 mb-2" />
+             <Skeleton className="h-4 w-3/4" />
+           </div>
+         ))}
+       </div>
+       <div className="space-y-4">
+         {[1, 2, 3].map(i => (
+           <div
+             key={i}
+             className="bg-white p-5 rounded-xl border border-gray-200"
+           >
+             <div className="flex items-center gap-3 mb-2">
+               <Skeleton className="h-5 w-5 rounded" />
+               <Skeleton className="h-6 w-48" />
+               <Skeleton className="h-5 w-20 rounded-full" />
+             </div>
+             <Skeleton className="h-4 w-full mb-2" />
+             <Skeleton className="h-4 w-3/4" />
+           </div>
+         ))}
+       </div>
+     </div>
+   )
+ }
 
   return (
     <div className="p-6">

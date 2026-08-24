@@ -15,6 +15,7 @@ import {
   FileImage,
   FileVideo,
 } from "lucide-react";
+import { GridSkeleton } from "../components/LoadingSkeleton";
 
 const PROJECT_ID = "6a0c62610037d13e6c11";
 const APPWRITE_ENDPOINT = "https://fra.cloud.appwrite.io/v1";
@@ -133,9 +134,6 @@ export default function Resources() {
     }
   };
 
-  // =========================
-  // DOWNLOAD
-  // =========================
   const downloadResource = async (fileId, fileName) => {
     if (downloadingId === fileId) return;
 
@@ -162,10 +160,8 @@ export default function Resources() {
     const name = (resource.fileName || "").toLowerCase();
     const type = (resource.resourceType || "").toLowerCase();
 
-    // PDF
     if (name.endsWith(".pdf") || type === "pdf") return "pdf";
 
-    // Images
     if (
       name.match(/\.(png|jpg|jpeg|gif|svg|webp)$/) ||
       type === "image"
@@ -173,7 +169,6 @@ export default function Resources() {
       return "image";
     }
 
-    // Videos
     if (
       name.match(/\.(mp4|webm|ogg|mov)$/) ||
       type === "video"
@@ -181,7 +176,6 @@ export default function Resources() {
       return "video";
     }
 
-    // Office files - open with Google Docs Viewer
     if (
       name.match(/\.(doc|docx|ppt|pptx|xls|xlsx|txt|csv)$/) ||
       type === "doc" ||
@@ -193,14 +187,10 @@ export default function Resources() {
     return "other";
   };
 
-  // =========================
-  // PREVIEW
-  // =========================
   const openPreview = (resource) => {
     const fileUrl = getFileUrl(resource.fileId, "view");
     const category = getFileCategory(resource);
 
-    // Office files -> Open in new tab with Google Docs
     if (category === "office") {
       const encodedUrl = encodeURIComponent(fileUrl);
       const googleViewerUrl = `https://docs.google.com/gview?url=${encodedUrl}&embedded=true`;
@@ -208,7 +198,6 @@ export default function Resources() {
       return;
     }
 
-    // Non-previewable -> Show fallback modal
     if (category === "other") {
       setPreviewingResource(resource);
       setPreviewUrl(fileUrl);
@@ -216,7 +205,6 @@ export default function Resources() {
       return;
     }
 
-    // PDF / Image / Video -> Show modal preview
     setPreviewingResource(resource);
     setPreviewUrl(fileUrl);
     setPreviewCategory(category);
@@ -282,13 +270,10 @@ export default function Resources() {
 
   return (
     <div>
-      {/* =========================
-          PREVIEW MODAL
-      ========================== */}
+      {/* Preview Modal */}
       {previewingResource && previewUrl && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-            {/* Modal header */}
             <div className="flex justify-between items-center p-4 border-b shrink-0">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">
@@ -307,7 +292,6 @@ export default function Resources() {
               </button>
             </div>
 
-            {/* Modal body */}
             <div className="flex-1 overflow-auto bg-gray-100 flex items-center justify-center min-h-[400px]">
               {previewCategory === "other" ? (
                 <div className="text-center p-8">
@@ -358,7 +342,6 @@ export default function Resources() {
               )}
             </div>
 
-            {/* Modal footer */}
             <div className="flex justify-end gap-3 p-4 border-t shrink-0">
               <button
                 onClick={() =>
@@ -485,7 +468,6 @@ export default function Resources() {
               </p>
             )}
 
-            {/* ✅ RECOMMENDATION BOX */}
             <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-sm text-blue-800 font-medium">
                 📌 File Format Recommendations:
@@ -555,9 +537,7 @@ export default function Resources() {
 
       {/* Resources Grid */}
       {isLoading ? (
-        <div className="text-center py-8 text-gray-500">
-          Loading resources…
-        </div>
+        <GridSkeleton count={6} cols={3} />
       ) : filteredResources.length === 0 ? (
         <div className="text-center py-12">
           <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />

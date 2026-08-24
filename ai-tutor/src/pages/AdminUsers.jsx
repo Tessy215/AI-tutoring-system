@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useState, useEffect } from "react";
 import { useAuth } from "../Contexts/AuthContext.jsx";
 import { databases } from "../lib/appwrite";
@@ -10,6 +11,8 @@ import {
   Award, Clock, Activity, FileText, CheckSquare
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Skeleton } from "../components/skeleton.jsx";
+import { TableSkeleton } from "../components/LoadingSkeleton.jsx";
 
 export default function AdminUsers() {
   const { user, userProfile } = useAuth();
@@ -252,19 +255,18 @@ export default function AdminUsers() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="h-10 bg-gray-200 rounded mb-6"></div>
-          <div className="space-y-3">
-            {[1,2,3,4].map(i => <div key={i} className="h-16 bg-gray-200 rounded"></div>)}
-          </div>
-        </div>
-      </div>
-    );
-  }
+ if (loading) {
+   return (
+     <div className="p-6">
+       <Skeleton className="h-8 w-48 mb-4" />
+       <Skeleton className="h-10 w-full mb-6" />
+       <TableSkeleton
+         rows={5}
+         cols={5}
+       />
+     </div>
+   )
+ }
 
   return (
     <div className="p-6">

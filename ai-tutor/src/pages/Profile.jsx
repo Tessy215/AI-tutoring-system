@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User, Mail, GraduationCap, Camera, Save, Edit2, BookOpen, Target } from "lucide-react";
 import { useAuth } from "../Contexts/AuthContext.jsx";
+import { Skeleton } from "../components/Skeleton.jsx";
 
 export default function Profile() {
   const { user, userProfile, updateProfile, getOnboardingData } = useAuth();
   const onboardingData = getOnboardingData();
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || "",
@@ -12,6 +14,13 @@ export default function Profile() {
     grade: userProfile?.grade || "",
   });
   const [isSaving, setIsSaving] = useState(false);
+
+  // Simulate loading (or remove if data is already loaded)
+  useEffect(() => {
+    if (user && userProfile) {
+      setLoading(false);
+    }
+  }, [user, userProfile]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -33,6 +42,71 @@ export default function Profile() {
     });
     setIsEditing(false);
   };
+
+  // Loading State
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="mb-8">
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1">
+            <div className="bg-white p-6 rounded-xl border border-gray-200">
+              <div className="text-center">
+                <Skeleton className="h-24 w-24 rounded-full mx-auto mb-4" />
+                <Skeleton className="h-6 w-32 mx-auto mb-2" />
+                <Skeleton className="h-4 w-24 mx-auto" />
+              </div>
+              <div className="mt-6 pt-6 border-t border-gray-200 space-y-3">
+                {[1, 2].map((i) => (
+                  <div key={i} className="flex justify-between">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="lg:col-span-2">
+            <div className="bg-white p-6 rounded-xl border border-gray-200">
+              <div className="flex justify-between items-center mb-6">
+                <Skeleton className="h-6 w-40" />
+                <Skeleton className="h-9 w-20 rounded-lg" />
+              </div>
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i}>
+                    <Skeleton className="h-4 w-24 mb-2" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="bg-white p-6 rounded-xl border border-gray-200 mt-6">
+              <Skeleton className="h-6 w-40 mb-4" />
+              <div className="space-y-6">
+                {[1, 2].map((i) => (
+                  <div key={i}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Skeleton className="h-5 w-5 rounded" />
+                      <Skeleton className="h-5 w-32" />
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {[1, 2, 3].map((j) => (
+                        <Skeleton key={j} className="h-6 w-20 rounded-full" />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
